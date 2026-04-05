@@ -1,0 +1,4 @@
+user_id,name,role,zone
+A001,Admin Alice,admin,factory
+R001,Resident Bob,resident,residential
+M001,Medical Mary,resident,medical
