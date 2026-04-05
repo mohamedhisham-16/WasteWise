@@ -10,7 +10,7 @@ class PriorityScoring:
     WEIGHT_SOURCE = 0.30
     WEIGHT_CATEGORY = 0.20
     
-    # Predefined importance factors
+    # Predefined importance factors for source types
     SOURCE_IMPORTANCE = {
         'Hospital': 100,
         'Market': 80,
@@ -19,12 +19,12 @@ class PriorityScoring:
         'Household': 20
     }
     
+    # Updated to match the 4 waste categories from the project spec
     CATEGORY_URGENCY = {
-        'Bio-medical': 100,
-        'Organic': 80,      # Decomposes quickly
-        'Hazardous': 70,
-        'Recyclable': 40,
-        'General': 30
+        'Hazardous': 100,     # Chemicals, medical waste — highest urgency
+        'Electronic': 85,     # E-waste needs specialized handling
+        'Biodegradable': 70,  # Decomposes quickly, attracts pests
+        'Recyclable': 40      # Least urgent, stable materials
     }
 
     def calculate_score(self, bin_obj):
@@ -44,10 +44,10 @@ class PriorityScoring:
             (source_score * self.WEIGHT_SOURCE) + 
             (category_score * self.WEIGHT_CATEGORY)
         )
-        return final_score
+        return round(final_score, 2)
 
     def rank_bins(self, bins):
-        """Returns a list of bins sorted by urgency score (highest first)."""
+        """Returns a list of (bin, score) tuples sorted by urgency (highest first)."""
         ranked_list = []
         for b in bins:
             score = self.calculate_score(b)
