@@ -1,0 +1,43 @@
+{
+  "zone_mappings": {
+    "residential": ["biodegradable", "recyclable"],
+    "medical": ["biodegradable", "recyclable", "hazardous"],
+    "factory": ["biodegradable", "recyclable", "e-waste"]
+  },
+  "valid_items": {
+    "biodegradable": [
+      "food waste",
+      "vegetable peels",
+      "fruit scraps",
+      "leaves",
+      "organic",
+      "leftovers"
+    ],
+    "recyclable": [
+      "paper",
+      "glass bottle",
+      "plastics",
+      "cardboard",
+      "metal cans",
+      "plastic bottle"
+    ],
+    "hazardous": [
+      "syringes",
+      "bandages",
+      "expired medicine",
+      "chemicals",
+      "medical waste",
+      "needles"
+    ],
+    "e-waste": [
+      "electronics",
+      "displays",
+      "batteries",
+      "motherboards",
+      "cables",
+      "monitors",
+      "phones",
+      "keyboards"
+    ]
+  }
+}
