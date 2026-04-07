@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WasteWise - Master Implementation Plan</title>
+    <style>
+        :root {
+            --primary: #2ecc71;
+            --primary-dark: #27ae60;
+            --secondary: #34495e;
+            --bg: #f9f9f9;
+            --text: #333;
+            --white: #ffffff;
+            --border: #e0e0e0;
+            --accent: #e74c3c;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background-color: var(--bg);
+            margin: 0;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--white);
+            padding: 60px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        h1 {
+            color: var(--secondary);
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            border-bottom: 4px solid var(--primary);
+            padding-bottom: 15px;
+        }
+
+        h2 {
+            color: var(--primary-dark);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            border-left: 5px solid var(--primary);
+            padding-left: 15px;
+        }
+
+        h3 {
+            color: var(--secondary);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 1.1rem;
+            margin-top: 20px;
+            background: #f0f0f0;
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+
+        p {
+            margin-bottom: 20px;
+        }
+
+        ul {
+            padding-left: 20px;
+            margin-bottom: 20px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .alert {
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+            border-left: 6px solid;
+        }
+
+        .alert-important {
+            background-color: #fff5f5;
+            border-color: var(--accent);
+            color: #c53030;
+        }
+
+        .alert-important strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+        }
+
+        .alert-note {
+            background-color: #f0f9ff;
+            border-color: #2b6cb0;
+            color: #2c5282;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9em;
+        }
+
+        .footer {
+            margin-top: 60px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #888;
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                max-width: 100%;
+                padding: 20px;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+
+        .print-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .print-btn:hover {
+            background: var(--primary-dark);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button onclick="window.print()" class="print-btn no-print">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+            Save as PDF / Print
+        </button>
+
+        <h1>Master Implementation Plan</h1>
+        <p style="font-weight: 600; color: #666;">WasteWise: Comprehensive Smart Waste System</p>
+
+        <p>This plan combines the core urban waste management logic with the new user-centric penalty and tracking system. The goal is a modular, zero-dependency Python application that simulates both <strong>Individual Responsibility</strong> (disposal) and <strong>City-wide Efficiency</strong> (collection).</p>
+
+        <div class="alert alert-important">
+            <strong>IMPORTANT: Integration Flow</strong>
+            When a user adds waste, the system will immediately calculate penalties (User Responsibility) AND update the global bin state (City Infrastructure). Once a bin is full, the system will trigger the priority/allocation logic (Operational Efficiency).
+        </div>
+
+        <div class="alert alert-note">
+            <strong>NOTE: Data Generation</strong>
+            I will generate 20 category-specific CSV files with varied compositions to ensure the random-selection requirement provides meaningful test data.
+        </div>
+
+        <h2>Proposed Changes</h2>
+
+        <h3>Phase 1: User Responsibility & Input</h3>
+        
+        <h4>[NEW] input_handler.py</h4>
+        <ul>
+            <li><strong>InputProcessor</strong>: Handles immediate logic for every disposal event.</li>
+            <li><strong>Login</strong>: Manages current <code>user_id</code>.</li>
+            <li><strong>CSV Selector</strong>: Randomly chooses one of 5 CSVs for the selected category.</li>
+            <li><strong>Contamination Calc</strong>: <code>quantity * invalid_sum</code> based on allowed types.</li>
+            <li><strong>Penalty Calc</strong>: <code>contamination * severity * base_rate</code>.</li>
+        </ul>
+
+        <h4>[NEW] logger.py</h4>
+        <ul>
+            <li><strong>CSV Logging</strong>: Appends every event with Input ID, User ID, Bin ID, Category, Qty, Contamination, and Penalty to <code>logs/disposal_events.csv</code>.</li>
+        </ul>
+
+        <h4>[NEW] data/composition/</h4>
+        <ul>
+            <li>20 randomized CSV files stored in category-specific subdirectories.</li>
+        </ul>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 40px 0;">
+
+        <h3>Phase 2: Core Operational Modules</h3>
+
+        <h4>[MODIFY] models.py</h4>
+        <ul>
+            <li>Define <code>Bin</code>, <code>Vehicle</code>, and <code>Facility</code> base classes.</li>
+            <li>Add <code>User</code> tracking capabilities to <code>Bin</code> history.</li>
+        </ul>
+
+        <h4>[MODIFY] distance_graph.py</h4>
+        <ul>
+            <li>Adjacency list to manage travel times between city nodes.</li>
+        </ul>
+
+        <h4>[MODIFY] monitoring.py</h4>
+        <ul>
+            <li>Real-time tracking of bin fill levels across the whole city.</li>
+        </ul>
+
+        <h4>[MODIFY] priority.py</h4>
+        <ul>
+            <li>Rank bins by fill level, source importance, and waste urgency.</li>
+        </ul>
+
+        <h4>[MODIFY] vehicle_allocation.py</h4>
+        <ul>
+            <li>Assign closest available/compatible vehicles to high-priority bins.</li>
+        </ul>
+
+        <h4>[NEW] facility_allocation.py</h4>
+        <ul>
+            <li>Route "Full" vehicles to appropriate processing plants based on waste type.</li>
+        </ul>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 40px 0;">
+
+        <h3>Phase 3: GUI & Orchestration</h3>
+
+        <h4>[NEW] gui.py</h4>
+        <ul>
+            <li><strong>Multi-Tab Dashboard</strong>:
+                <ul>
+                    <li><strong>Tab 1: Disposal</strong>: User Login & Waste Input (shows immediate penalty).</li>
+                    <li><strong>Tab 2: Map/Status</strong>: Real-time bin levels and vehicle movements.</li>
+                    <li><strong>Tab 3: Reports</strong>: View the logs of all disposal events and penalties.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h4>[NEW] engine.py</h4>
+        <ul>
+            <li>Coordinates all modules into a single simulation lifecycle.</li>
+        </ul>
+
+        <h2>Verification Plan</h2>
+        
+        <h3>Automated Tests</h3>
+        <ul>
+            <li>Penalty accuracy for all 4 categories.</li>
+            <li>Vehicle-Bin compatibility checks.</li>
+            <li>Graph pathfinding and travel cost reliability.</li>
+        </ul>
+
+        <h3>Manual Verification</h3>
+        <ul>
+            <li>Full user journey: Login → Dispose → Penalty Log → Bin Detection → Collection → Processing.</li>
+        </ul>
+
+        <div class="footer">
+            Generated by Antigravity AI for WasteWise Project &copy; 2026
+        </div>
+    </div>
+</body>
+</html>
