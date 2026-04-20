@@ -75,12 +75,32 @@ class WasteWiseGUI(tk.Tk):
         # Facilities Area
         ttk.Label(self.left_panel, text="Processing Facilities", style="Header.TLabel").pack(anchor=tk.W, pady=(0, 5))
         
-        columns_fac = ('ID', 'Type', 'Processed Load')
-        self.tree_fac = ttk.Treeview(self.left_panel, columns=columns_fac, show='headings', height=5)
-        for col in columns_fac:
-            self.tree_fac.heading(col, text=col)
-            self.tree_fac.column(col, width=120)
-        self.tree_fac.pack(fill=tk.X)
+        self.fac_frame = ttk.Frame(self.left_panel)
+        self.fac_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self.fac_widgets = {} # Stores progress bars and labels by facility_id
+        
+        for f in self.engine.facilities:
+            row_frame = ttk.Frame(self.fac_frame)
+            row_frame.pack(fill=tk.X, pady=2)
+            
+            lbl = ttk.Label(row_frame, text=f"{f.facility_id} ({f.facility_type})", width=25)
+            lbl.pack(side=tk.LEFT)
+            
+            pb = ttk.Progressbar(row_frame, orient=tk.HORIZONTAL, length=150, mode='determinate')
+            pb.pack(side=tk.LEFT, padx=5)
+            
+            val_lbl = ttk.Label(row_frame, text="0.0/0.0 kg", width=15)
+            val_lbl.pack(side=tk.LEFT)
+            
+            time_lbl = ttk.Label(row_frame, text="Next: 5", width=8)
+            time_lbl.pack(side=tk.LEFT)
+            
+            btn_empty = ttk.Button(row_frame, text="Empty", width=8, 
+                                   command=lambda fid=f.facility_id: self.empty_facility(fid))
+            btn_empty.pack(side=tk.LEFT, padx=5)
+            
+            self.fac_widgets[f.facility_id] = {"pb": pb, "val": val_lbl, "time": time_lbl}
         
         # --- RIGHT PANEL: Fleet, Logs, Controls --- #
         # Fleet Area
@@ -134,15 +154,30 @@ class WasteWiseGUI(tk.Tk):
                 widgets["val"].config(foreground='black', font=("Segoe UI", 10))
 
         # Update Facilities
-        for item in self.tree_fac.get_children():
-            self.tree_fac.delete(item)
-            
         for f in self.engine.facilities:
-            self.tree_fac.insert('', 'end', values=(
-                f.facility_id, 
-                f.facility_type, 
-                f"{f.current_load:.1f} / {f.max_daily_capacity:.1f} kg"
-            ))
+            widgets = self.fac_widgets[f.facility_id]
+            
+            # Progress bar based on load
+            pct = (f.current_load / f.max_daily_capacity * 100) if f.max_daily_capacity > 0 else 0
+            widgets["pb"]["value"] = pct
+            
+            # Labels
+            widgets["val"].config(text=f"{f.current_load:.1f}/{f.max_daily_capacity:.1f} kg")
+            
+            if f.processing_time_left > 0:
+                widgets["time"].config(text=f"Next: {f.processing_time_left} ticks", foreground='black')
+            else:
+                # Timer is 0, check if waiting or ready
+                if (f.current_load / f.max_daily_capacity) >= f.efficiency_threshold:
+                    widgets["time"].config(text="READY", foreground='green', font=("Segoe UI", 10, "bold"))
+                else:
+                    widgets["time"].config(text="WAITING", foreground='orange', font=("Segoe UI", 10, "bold"))
+            
+            # Styling for full capacity
+            if pct >= 90:
+                widgets["val"].config(foreground='red', font=("Segoe UI", 10, "bold"))
+            else:
+                widgets["val"].config(foreground='black', font=("Segoe UI", 10))
 
         # Update Fleet
         for item in self.tree_veh.get_children():
@@ -169,7 +204,10 @@ class WasteWiseGUI(tk.Tk):
                 # Or we can just log a summary
                 self.log_message(f"  -> Added {amount}kg to {b.bin_id} ({b.waste_type})")
                 
-        self.log_message("Waste levels increased across the city.")
+        # Also advance facility timers
+        self.engine.advance_facilities()
+        
+        self.log_message("Waste levels increased across the city. Facility timers advanced.")
         self.refresh_ui()
 
     def run_optimization(self):
@@ -191,6 +229,15 @@ class WasteWiseGUI(tk.Tk):
                 self.log_message(f" > FAILED TO ALLOCATE: {len(summary['failed_allocations'])}")
         
         self.refresh_ui()
+
+    def empty_facility(self, facility_id):
+        """Callback for the manual 'Empty' button."""
+        # Find the facility
+        facility = next((f for f in self.engine.facilities if f.facility_id == facility_id), None)
+        if facility:
+            facility.empty_facility()
+            self.log_message(f"\n[MANUAL] Facility {facility_id} has been manually cleared.")
+            self.refresh_ui()
 
     def reset_system(self):
         self.engine.reset_all()

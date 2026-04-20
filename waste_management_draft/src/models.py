@@ -74,7 +74,7 @@ class Vehicle:
 
 class Facility:
     """Represents a waste processing plant."""
-    def __init__(self, facility_id, facility_type, max_daily_capacity, supported_waste_types, current_load, location_id):
+    def __init__(self, facility_id, facility_type, max_daily_capacity, supported_waste_types, current_load, location_id, efficiency_threshold=0.7):
         self.facility_id = facility_id
         self.facility_type = facility_type # e.g., 'Recycling Plant', 'Compost Unit'
         self.max_daily_capacity = max_daily_capacity # Processing limit per day (kg)
@@ -84,6 +84,28 @@ class Facility:
 
         # --- Phase 2 additions ---
         self._initial_load = current_load
+        self.total_processing_time = 30  # Number of ticks until it is processed/emptied
+        self.processing_time_left = self.total_processing_time
+        self.efficiency_threshold = efficiency_threshold # 70% default
+
+    def tick(self):
+        """Reduces the time until the facility is emptied. Returns status string."""
+        if self.processing_time_left > 0:
+            self.processing_time_left -= 1
+        
+        if self.processing_time_left == 0:
+            fill_pct = (self.current_load / self.max_daily_capacity) if self.max_daily_capacity > 0 else 0
+            if fill_pct >= self.efficiency_threshold:
+                self.empty_facility()
+                return "emptied"
+            else:
+                return "low_load"
+        return "ticked"
+
+    def empty_facility(self):
+        """Manually or automatically empties the facility's processed load."""
+        self.current_load = 0.0
+        self.processing_time_left = self.total_processing_time
 
     def can_process(self, waste_type, quantity):
         """Checks if the facility can handle the specific waste type and quantity."""
@@ -105,6 +127,7 @@ class Facility:
     def reset(self):
         """Resets the facility to its initial state."""
         self.current_load = self._initial_load
+        self.processing_time_left = self.total_processing_time
 
     def __repr__(self):
-        return f"Facility({self.facility_id}, {self.facility_type}, Capacity: {self.current_load}/{self.max_daily_capacity})"
+        return f"Facility({self.facility_id}, {self.facility_type}, Capacity: {self.current_load}/{self.max_daily_capacity}, Time Left: {self.processing_time_left})"
