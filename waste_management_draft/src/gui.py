@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, scrolledtext
+from tkinter import ttk, scrolledtext, messagebox
 import random
 import threading
 import sys
@@ -11,239 +11,372 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from data_loader import load_all
 from engine import SimulationEngine
 
-class WasteWiseGUI(tk.Tk):
+# User Management Imports
+from user_management.user_manager import UserManager
+from user_management.input_handler import InputProcessor
+
+class WasteWiseApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        
-        self.title("WasteWise - Urban Simulation Dashboard")
-        self.geometry("1100x700")
+        self.title("WasteWise - Integrated Urban System")
+        self.geometry("1100x800")
         self.configure(bg="#f4f4f9")
         
-        # System Styles
-        style = ttk.Style(self)
-        style.theme_use('clam')
-        style.configure("TFrame", background="#f4f4f9")
-        style.configure("TLabel", background="#f4f4f9", font=("Segoe UI", 10))
-        style.configure("Header.TLabel", font=("Segoe UI", 14, "bold"))
+        # Shared Managers
+        self.user_manager = UserManager()
+        self.input_processor = InputProcessor()
         
-        # Load Simulation
-        self.init_simulation()
-        
-        # Build UI
-        self.build_ui()
-        self.refresh_ui()
-        
-        self.log_message("System Initialized Successfully.")
-
-    def init_simulation(self):
+        # Simulation Logic (Shared across views)
         bins, vehicles, facilities, graph = load_all()
         self.engine = SimulationEngine(bins, vehicles, facilities, graph)
         self.engine.reset_all()
 
-    def build_ui(self):
-        # Master frames
+        # Styles
+        self.style = ttk.Style(self)
+        self.style.theme_use('clam')
+        self.style.configure("TFrame", background="#f4f4f9")
+        self.style.configure("TLabel", background="#f4f4f9", font=("Segoe UI", 10))
+        self.style.configure("Header.TLabel", font=("Segoe UI", 14, "bold"))
+        self.style.configure("Title.TLabel", font=("Segoe UI", 18, "bold"))
+
+        # Transition to Login
+        self.show_login()
+
+    def clear_window(self):
+        for widget in self.winfo_children():
+            widget.destroy()
+
+    def show_login(self):
+        self.clear_window()
+        self.title("WasteWise Login")
+        self.geometry("400x350")
+        
+        frame = ttk.Frame(self, padding=30)
+        frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+        
+        ttk.Label(frame, text="WasteWise Login", style="Title.TLabel").pack(pady=(0, 20))
+        
+        ttk.Label(frame, text="Enter User ID:").pack(anchor=tk.W)
+        ent_id = ttk.Entry(frame, width=30)
+        ent_id.pack(pady=(5, 20))
+        ent_id.focus_set()
+        
+        lbl_error = ttk.Label(frame, text="", foreground="red")
+        
+        def do_login(event=None):
+            uid = ent_id.get().strip()
+            user = self.user_manager.search_user(uid)
+            if user:
+                if user.role.lower() == 'admin':
+                    self.show_admin(user)
+                else:
+                    self.show_resident(user)
+            else:
+                lbl_error.config(text="Invalid User ID.")
+
+        ent_id.bind("<Return>", do_login)
+        ttk.Button(frame, text="Login", command=do_login).pack(fill=tk.X)
+        lbl_error.pack(pady=10)
+
+    # -------------------------------------------------------------------------
+    #  ADMIN DASHBOARD VIEW
+    # -------------------------------------------------------------------------
+    def show_admin(self, user):
+        self.clear_window()
+        self.title(f"WasteWise Admin - {user.name}")
+        self.geometry("1100x750")
+        self.current_user = user
+
+        # Header
+        head = ttk.Frame(self, padding=5)
+        head.pack(fill=tk.X)
+        ttk.Button(head, text="Logout", command=self.show_login).pack(side=tk.RIGHT, padx=10)
+        ttk.Button(head, text="Manage Users", command=self.show_user_management).pack(side=tk.RIGHT, padx=10)
+        ttk.Label(head, text=f"Admin: {user.name}", font=("Segoe UI", 10, "bold")).pack(side=tk.RIGHT, padx=10)
+
+        # Main Layout
         self.left_panel = ttk.Frame(self, padding=10)
         self.left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
         self.right_panel = ttk.Frame(self, padding=10)
         self.right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-        
-        # --- LEFT PANEL: Bins & Facilities --- #
+
         # Bins Area
-        ttk.Label(self.left_panel, text="City Waste Bins", style="Header.TLabel").pack(anchor=tk.W, pady=(0, 5))
-        
+        ttk.Label(self.left_panel, text="City Waste Bins", style="Header.TLabel").pack(anchor=tk.W)
         self.bins_frame = ttk.Frame(self.left_panel)
-        self.bins_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        self.bins_frame.pack(fill=tk.BOTH, expand=True, pady=10)
         
-        self.bin_widgets = {} # Stores progress bars and labels by bin_id
-        
-        for i, b in enumerate(self.engine.bins):
-            row_frame = ttk.Frame(self.bins_frame)
-            row_frame.pack(fill=tk.X, pady=2)
-            
-            lbl = ttk.Label(row_frame, text=f"{b.bin_id} ({b.waste_type})", width=25)
-            lbl.pack(side=tk.LEFT)
-            
-            pb = ttk.Progressbar(row_frame, orient=tk.HORIZONTAL, length=200, mode='determinate')
+        self.admin_bin_widgets = {}
+        for b in self.engine.bins:
+            row = ttk.Frame(self.bins_frame)
+            row.pack(fill=tk.X, pady=2)
+            ttk.Label(row, text=f"{b.bin_id} ({b.waste_type})", width=25).pack(side=tk.LEFT)
+            pb = ttk.Progressbar(row, orient=tk.HORIZONTAL, length=200, mode='determinate')
             pb.pack(side=tk.LEFT, padx=10)
-            
-            val_lbl = ttk.Label(row_frame, text="0.0%", width=8)
-            val_lbl.pack(side=tk.LEFT)
-            
-            self.bin_widgets[b.bin_id] = {"pb": pb, "val": val_lbl}
+            val = ttk.Label(row, text="0.0%", width=15)
+            val.pack(side=tk.LEFT)
+            self.admin_bin_widgets[b.bin_id] = {"pb": pb, "val": val}
 
-        # Facilities Area
-        ttk.Label(self.left_panel, text="Processing Facilities", style="Header.TLabel").pack(anchor=tk.W, pady=(0, 5))
-        
+        # Facilities
+        ttk.Label(self.left_panel, text="Processing Facilities", style="Header.TLabel").pack(anchor=tk.W)
         self.fac_frame = ttk.Frame(self.left_panel)
-        self.fac_frame.pack(fill=tk.BOTH, expand=True)
-        
-        self.fac_widgets = {} # Stores progress bars and labels by facility_id
-        
+        self.fac_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+        self.admin_fac_widgets = {}
         for f in self.engine.facilities:
-            row_frame = ttk.Frame(self.fac_frame)
-            row_frame.pack(fill=tk.X, pady=2)
-            
-            lbl = ttk.Label(row_frame, text=f"{f.facility_id} ({f.facility_type})", width=25)
-            lbl.pack(side=tk.LEFT)
-            
-            pb = ttk.Progressbar(row_frame, orient=tk.HORIZONTAL, length=150, mode='determinate')
+            row = ttk.Frame(self.fac_frame)
+            row.pack(fill=tk.X, pady=2)
+            ttk.Label(row, text=f"{f.facility_id} ({f.facility_type})", width=25).pack(side=tk.LEFT)
+            pb = ttk.Progressbar(row, orient=tk.HORIZONTAL, length=150, mode='determinate')
             pb.pack(side=tk.LEFT, padx=5)
-            
-            val_lbl = ttk.Label(row_frame, text="0.0/0.0 kg", width=15)
-            val_lbl.pack(side=tk.LEFT)
-            
-            time_lbl = ttk.Label(row_frame, text="Next: 5", width=8)
+            val = ttk.Label(row, text="0/0 kg", width=15)
+            val.pack(side=tk.LEFT)
+            time_lbl = ttk.Label(row, text="Next: 5", width=8)
             time_lbl.pack(side=tk.LEFT)
-            
-            btn_empty = ttk.Button(row_frame, text="Empty", width=8, 
-                                   command=lambda fid=f.facility_id: self.empty_facility(fid))
-            btn_empty.pack(side=tk.LEFT, padx=5)
-            
-            self.fac_widgets[f.facility_id] = {"pb": pb, "val": val_lbl, "time": time_lbl}
-        
-        # --- RIGHT PANEL: Fleet, Logs, Controls --- #
-        # Fleet Area
-        ttk.Label(self.right_panel, text="Fleet Status", style="Header.TLabel").pack(anchor=tk.W, pady=(0, 5))
-        
-        columns_veh = ('ID', 'Type', 'Load', 'Status')
-        self.tree_veh = ttk.Treeview(self.right_panel, columns=columns_veh, show='headings', height=5)
-        for col in columns_veh:
-            self.tree_veh.heading(col, text=col)
-            self.tree_veh.column(col, width=100)
-        self.tree_veh.pack(fill=tk.X, pady=(0, 15))
-        
-        # Logs Area
-        ttk.Label(self.right_panel, text="Live Events Log", style="Header.TLabel").pack(anchor=tk.W, pady=(0, 5))
-        
-        self.log_text = scrolledtext.ScrolledText(self.right_panel, height=15, width=50, font=("Consolas", 9))
-        self.log_text.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-        
-        # Controls Area
-        controls_frame = ttk.Frame(self.right_panel)
-        controls_frame.pack(fill=tk.X)
-        
-        self.btn_simulate = ttk.Button(controls_frame, text="1. Advance Time (Add Waste)", command=self.simulate_step)
-        self.btn_simulate.pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
-        
-        self.btn_optimize = ttk.Button(controls_frame, text="2. Run Dispatch Engine", command=self.run_optimization)
-        self.btn_optimize.pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
-        
-        self.btn_reset = ttk.Button(controls_frame, text="Reset System", command=self.reset_system)
-        self.btn_reset.pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
+            ttk.Button(row, text="Empty", width=8, command=lambda fid=f.facility_id: self.admin_empty_fac(fid)).pack(side=tk.LEFT, padx=5)
+            self.admin_fac_widgets[f.facility_id] = {"pb": pb, "val": val, "time": time_lbl}
 
-    def log_message(self, message):
-        self.log_text.insert(tk.END, message + "\n")
-        self.log_text.see(tk.END) # Auto scroll to bottom
-        self.update_idletasks()
-        
-    def refresh_ui(self):
-        # Update Bins
+        # Fleet / Logs
+        ttk.Label(self.right_panel, text="Fleet Status", style="Header.TLabel").pack(anchor=tk.W)
+        cols = ('ID', 'Type', 'Load', 'Status', 'Last Action', 'Target')
+        self.tree_veh = ttk.Treeview(self.right_panel, columns=cols, show='headings', height=7)
+        for c in cols: 
+            self.tree_veh.heading(c, text=c)
+            self.tree_veh.column(c, width=100)
+        self.tree_veh.pack(fill=tk.X, pady=10)
+
+        ttk.Label(self.right_panel, text="Live Events Log", style="Header.TLabel").pack(anchor=tk.W)
+        self.log_text = scrolledtext.ScrolledText(self.right_panel, height=15, width=50, font=("Consolas", 9))
+        self.log_text.pack(fill=tk.BOTH, expand=True, pady=10)
+
+        ctrls = ttk.Frame(self.right_panel)
+        ctrls.pack(fill=tk.X)
+        ttk.Button(ctrls, text="1. Advance Time", command=self.admin_simulate).pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
+        ttk.Button(ctrls, text="2. Run Dispatch", command=self.admin_optimize).pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
+        ttk.Button(ctrls, text="Reset System", command=self.admin_reset).pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
+
+        self.refresh_admin_ui()
+
+    def refresh_admin_ui(self):
         for b in self.engine.bins:
             fill = b.get_fill_percentage()
-            widgets = self.bin_widgets[b.bin_id]
-            widgets["pb"]["value"] = fill
-            widgets["val"].config(text=f"{fill:.1f}%")
-            
-            # Change color conceptually using standard themes (Hard in Tkinter but we can at least show it)
-            if fill >= 90:
-                widgets["val"].config(foreground='red', font=("Segoe UI", 10, "bold"))
-            elif fill >= 70:
-                widgets["val"].config(foreground='orange', font=("Segoe UI", 10, "bold"))
-            else:
-                widgets["val"].config(foreground='black', font=("Segoe UI", 10))
+            w = self.admin_bin_widgets[b.bin_id]
+            w["pb"]["value"] = fill
+            txt = f"{fill:.1f}% [{b.assigned_vehicle}]" if b.assigned_vehicle else f"{fill:.1f}%"
+            w["val"].config(text=txt, foreground='red' if fill >= 90 else 'orange' if fill >= 70 else 'black')
 
-        # Update Facilities
         for f in self.engine.facilities:
-            widgets = self.fac_widgets[f.facility_id]
-            
-            # Progress bar based on load
+            w = self.admin_fac_widgets[f.facility_id]
             pct = (f.current_load / f.max_daily_capacity * 100) if f.max_daily_capacity > 0 else 0
-            widgets["pb"]["value"] = pct
-            
-            # Labels
-            widgets["val"].config(text=f"{f.current_load:.1f}/{f.max_daily_capacity:.1f} kg")
-            
+            w["pb"]["value"] = pct
+            w["val"].config(text=f"{f.current_load:.1f}/{f.max_daily_capacity:.1f} kg")
             if f.processing_time_left > 0:
-                widgets["time"].config(text=f"Next: {f.processing_time_left} ticks", foreground='black')
+                w["time"].config(text=f"Next: {f.processing_time_left} ticks", foreground='black')
             else:
-                # Timer is 0, check if waiting or ready
-                if (f.current_load / f.max_daily_capacity) >= f.efficiency_threshold:
-                    widgets["time"].config(text="READY", foreground='green', font=("Segoe UI", 10, "bold"))
-                else:
-                    widgets["time"].config(text="WAITING", foreground='orange', font=("Segoe UI", 10, "bold"))
-            
-            # Styling for full capacity
-            if pct >= 90:
-                widgets["val"].config(foreground='red', font=("Segoe UI", 10, "bold"))
-            else:
-                widgets["val"].config(foreground='black', font=("Segoe UI", 10))
+                status = "READY" if (f.current_load / f.max_daily_capacity) >= f.efficiency_threshold else "WAITING"
+                w["time"].config(text=status, foreground='green' if status == "READY" else 'orange')
 
-        # Update Fleet
-        for item in self.tree_veh.get_children():
-            self.tree_veh.delete(item)
-            
+        for i in self.tree_veh.get_children(): self.tree_veh.delete(i)
         for v in self.engine.vehicles:
-            # Assuming 'Idle' if current_load is 0, else 'Active'
-            status = "Idle" if v.current_load == 0 else "Loaded"
-            self.tree_veh.insert('', 'end', values=(
-                v.vehicle_id, 
-                v.vehicle_type, 
-                f"{v.current_load:.1f} / {v.total_capacity:.1f} kg",
-                status
-            ))
+            self.tree_veh.insert('', 'end', values=(v.vehicle_id, v.vehicle_type, f"{v.current_load:.1f}kg", 
+                                                    "Loaded" if v.current_load > 0 else "Idle",
+                                                    getattr(v, 'last_task', 'None'),
+                                                    getattr(v, 'last_target', 'N/A')))
 
-    def simulate_step(self):
-        self.log_message("\n--- TIME TICK: Adding Waste ---")
+    def admin_log(self, msg):
+        if hasattr(self, 'log_text'):
+            self.log_text.insert(tk.END, msg + "\n")
+            self.log_text.see(tk.END)
+
+    def admin_simulate(self):
+        self.admin_log("\n--- TICK: Adding Waste ---")
         for b in self.engine.bins:
             if random.random() > 0.3:
-                amount = round(random.uniform(10.0, 40.0), 2)
-                self.engine.add_waste(b.bin_id, b.waste_type, amount, user_id=f"SimUser")
-                
-                # Fetch recent engine logs purely for displaying here instead of modifying engine right now
-                # Or we can just log a summary
-                self.log_message(f"  -> Added {amount}kg to {b.bin_id} ({b.waste_type})")
-                
-        # Also advance facility timers
+                amt = round(random.uniform(10.0, 40.0), 2)
+                res = self.engine.add_waste(b.bin_id, b.waste_type, amt, user_id="SimUser")
+                if res and res.get('success'):
+                    self.admin_log(f"  -> Added {amt}kg to {b.bin_id} ({res.get('contamination_detected', 0)*100:.1f}% detection)")
         self.engine.advance_facilities()
-        
-        self.log_message("Waste levels increased across the city. Facility timers advanced.")
-        self.refresh_ui()
+        self.refresh_admin_ui()
 
-    def run_optimization(self):
-        self.log_message("\n[ENGINE CHECK] Scanning for full bins...")
-        
-        # Engine execution might be slightly intensive, but for 10 bins it's instantaneous.
-        summary = self.engine.run_optimization(alert_threshold=70.0)
-        
-        # Retrieve logs generated by engine
-        # We process the recent event logs the engine made 
-        # (Alternatively, we can just print the summary).
-        if summary["bins_detected"] == 0:
-            self.log_message("System healthy. No dispatches required.")
-        else:
-            self.log_message(f"Engine Dispatch Complete:")
-            self.log_message(f" > Collected {summary['bins_collected']} overloaded bins.")
-            self.log_message(f" > Trucks Unloaded: {summary['vehicles_unloaded']}")
-            if summary['failed_allocations']:
-                self.log_message(f" > FAILED TO ALLOCATE: {len(summary['failed_allocations'])}")
-        
-        self.refresh_ui()
+    def admin_optimize(self):
+        sumry = self.engine.run_optimization(alert_threshold=70.0)
+        self.admin_log(f"\nEngine: Collected {sumry['bins_collected']}, Unloaded {sumry['vehicles_unloaded']}")
+        self.refresh_admin_ui()
 
-    def empty_facility(self, facility_id):
-        """Callback for the manual 'Empty' button."""
-        # Find the facility
-        facility = next((f for f in self.engine.facilities if f.facility_id == facility_id), None)
-        if facility:
-            facility.empty_facility()
-            self.log_message(f"\n[MANUAL] Facility {facility_id} has been manually cleared.")
-            self.refresh_ui()
+    def admin_empty_fac(self, fid):
+        f = next((fac for fac in self.engine.facilities if fac.facility_id == fid), None)
+        if f: f.empty_facility(); self.admin_log(f"\n[MANUAL] {fid} cleared."); self.refresh_admin_ui()
 
-    def reset_system(self):
-        self.engine.reset_all()
-        self.log_message("\n[SYSTEM SYSTEM_RESET] All bins and vehicles reverted to starting state.")
-        self.refresh_ui()
+    def admin_reset(self):
+        self.engine.reset_all(); self.admin_log("\n[RESET] Reverted to start."); self.refresh_admin_ui()
+
+    # --- USER MANAGEMENT SECTION ---
+    def show_user_management(self):
+        win = tk.Toplevel(self)
+        win.title("User Management")
+        win.geometry("600x450")
+        win.grab_set()
+
+        head = ttk.Frame(win, padding=10)
+        head.pack(fill=tk.X)
+        ttk.Label(head, text="System Users", font=("Segoe UI", 12, "bold")).pack(side=tk.LEFT)
+        ttk.Button(head, text="Add New User", command=lambda: self.open_add_user_dialog(win)).pack(side=tk.RIGHT)
+
+        cols = ("Name", "ID", "Role", "Zone")
+        tree = ttk.Treeview(win, columns=cols, show='headings')
+        for c in cols:
+            tree.heading(c, text=c)
+            tree.column(c, width=120)
+        tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        def refresh_list():
+            for i in tree.get_children(): tree.delete(i)
+            # Accessing user_manager's internal list
+            for u in self.user_manager.users:
+                tree.insert('', 'end', values=(u.name, u.user_id, u.role, u.zone))
+
+        def delete_selected():
+            sel = tree.selection()
+            if not sel: return
+            uid = tree.item(sel[0])['values'][1]
+            if str(uid) == self.current_user.user_id:
+                messagebox.showerror("Error", "You cannot delete yourself!")
+                return
+            if messagebox.askyesno("Confirm", f"Delete user {uid}?"):
+                if self.user_manager.delete_user(uid):
+                    refresh_list()
+                    messagebox.showinfo("Success", "User deleted.")
+
+        btn_bar = ttk.Frame(win, padding=10)
+        btn_bar.pack(fill=tk.X)
+        ttk.Button(btn_bar, text="Delete Selected", command=delete_selected).pack(side=tk.RIGHT)
+        
+        win.refresh_ptr = refresh_list # Attach for child dialog
+        refresh_list()
+
+    def open_add_user_dialog(self, parent_win):
+        dialog = tk.Toplevel(parent_win)
+        dialog.title("Add New User")
+        dialog.geometry("350x400")
+        dialog.grab_set()
+
+        content = ttk.Frame(dialog, padding=20)
+        content.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(content, text="Full Name:").pack(anchor=tk.W)
+        ent_name = ttk.Entry(content, width=30); ent_name.pack(pady=(0, 10))
+
+        ttk.Label(content, text="Login ID:").pack(anchor=tk.W)
+        ent_id = ttk.Entry(content, width=30); ent_id.pack(pady=(0, 10))
+
+        ttk.Label(content, text="Role:").pack(anchor=tk.W)
+        combo_role = ttk.Combobox(content, values=["Admin", "Resident"], state="readonly")
+        combo_role.pack(pady=(0, 10)); combo_role.current(1)
+
+        ttk.Label(content, text="Assigned Zone:").pack(anchor=tk.W)
+        zones = list(self.input_processor.mappings.get('zone_mappings', {}).keys())
+        combo_zone = ttk.Combobox(content, values=zones, state="readonly")
+        combo_zone.pack(pady=(0, 10)); combo_zone.current(0)
+
+        def save():
+            name = ent_name.get().strip()
+            uid = ent_id.get().strip()
+            role = combo_role.get()
+            zone = combo_zone.get()
+
+            if not name or not uid:
+                messagebox.showerror("Error", "All fields are required.")
+                return
+
+            if self.user_manager.add_user(uid, name, role, zone):
+                messagebox.showinfo("Success", f"User {uid} created!")
+                dialog.destroy()
+                parent_win.refresh_ptr()
+            else:
+                messagebox.showerror("Error", "User ID already exists.")
+
+        ttk.Button(content, text="Create User", command=save, padding=10).pack(pady=20, fill=tk.X)
+    #  RESIDENT VIEW
+    # -------------------------------------------------------------------------
+    def show_resident(self, user):
+        self.clear_window()
+        self.title(f"WasteWise Resident - {user.name}")
+        self.geometry("600x600")
+        self.current_user = user
+
+        # Header
+        head = ttk.Frame(self, padding=10)
+        head.pack(fill=tk.X)
+        ttk.Label(head, text=f"Welcome, {user.name}", style="Header.TLabel").pack(side=tk.LEFT)
+        ttk.Button(head, text="Logout", command=self.show_login).pack(side=tk.RIGHT)
+        ttk.Label(head, text=f"Zone: {user.zone.capitalize()}", foreground="#666").pack(side=tk.RIGHT, padx=15)
+
+        # Content
+        content = ttk.Frame(self, padding=20)
+        content.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(content, text="Your Local Bins", font=("Segoe UI", 12)).pack(anchor=tk.W, pady=(0, 10))
+        
+        self.res_bin_widgets = {}
+        allowed = self.input_processor.get_allowed_bins(user.zone)
+        
+        for b in self.engine.bins:
+            if b.waste_type.lower() in allowed:
+                row = ttk.Frame(content)
+                row.pack(fill=tk.X, pady=10)
+                ttk.Label(row, text=f"{b.waste_type.capitalize()} Bin ({b.bin_id})", width=25).pack(side=tk.LEFT)
+                pb = ttk.Progressbar(row, orient=tk.HORIZONTAL, length=200, mode='determinate')
+                pb.pack(side=tk.LEFT, padx=10)
+                val = ttk.Label(row, text="0.0%", width=8)
+                val.pack(side=tk.LEFT)
+                self.res_bin_widgets[b.bin_id] = {"pb": pb, "val": val, "obj": b}
+
+        ttk.Button(self, text="Dispose Waste", command=self.res_open_dump_dialog, padding=10).pack(pady=30)
+        self.refresh_resident_ui()
+
+    def refresh_resident_ui(self):
+        for bid, w in self.res_bin_widgets.items():
+            b = w["obj"]
+            fill = b.get_fill_percentage()
+            w["pb"]["value"] = fill
+            w["val"].config(text=f"{fill:.1f}%")
+
+    def res_open_dump_dialog(self):
+        dialog = tk.Toplevel(self)
+        dialog.title("Dispose Waste")
+        dialog.geometry("350x250")
+        dialog.grab_set()
+        
+        ttk.Label(dialog, text="Select Bin:").pack(pady=(15, 0))
+        bids = list(self.res_bin_widgets.keys())
+        combo = ttk.Combobox(dialog, values=bids, state="readonly")
+        combo.pack(pady=5); combo.current(0)
+        
+        ttk.Label(dialog, text="Amount (kg):").pack(pady=(10, 0))
+        ent = ttk.Entry(dialog); ent.pack(pady=5); ent.focus_set()
+        
+        def commit(event=None):
+            bid = combo.get()
+            try:
+                amt = float(ent.get())
+                if amt <= 0: raise ValueError
+            except:
+                messagebox.showerror("Error", "Enter a valid positive number.")
+                return
+            
+            b_obj = self.res_bin_widgets[bid]["obj"]
+            res = self.engine.add_waste(bid, b_obj.waste_type, amt, user_id=self.current_user.user_id)
+            
+            if res and res.get("success"):
+                dialog.destroy()
+                self.refresh_resident_ui()
+                det = res.get('contamination_detected', 0) * 100
+                messagebox.showinfo("Success", f"Waste added! Smart sensor detected {det:.1f}% contamination.")
+            else:
+                messagebox.showerror("Full", "Cannot add waste. Bin might be full.")
+
+        ent.bind("<Return>", commit)
+        ttk.Button(dialog, text="Submit", command=commit).pack(pady=20)
 
 if __name__ == "__main__":
-    app = WasteWiseGUI()
+    app = WasteWiseApp()
     app.mainloop()

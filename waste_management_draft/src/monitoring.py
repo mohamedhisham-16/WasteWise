@@ -2,6 +2,7 @@
 # Module: Waste Monitoring Module
 # Purpose: Track and update bin fill levels and status.
 # Works alongside Phase 1's InputProcessor for contamination/penalty tracking.
+import random
 
 class WasteMonitor:
     """Manages the current state of bins and alerts when they approach capacity."""
@@ -37,12 +38,14 @@ class WasteMonitor:
             print(f"ERROR: Cannot add {quantity}kg. Bin {bin_id} would overflow!")
             return {"success": False, "reason": "overflow"}
 
-        # 2. Track 'Incorrect' Weight
+        # 2. Automated Contamination Tracking
+        # Simulate a smart sensor: 30% chance of detecting minor contamination
+        contamination_pct = 0.0
+        if random.random() < 0.3:
+            contamination_pct = random.uniform(0.01, 0.08) # 1% to 8% contamination
+            
         old_incorrect_weight = old_total * b.contamination_level
-        
-        # Check if the NEWLY added waste is incorrect
-        is_incorrect = (waste_type != b.waste_type)
-        new_incorrect_added = quantity if is_incorrect else 0.0
+        new_incorrect_added = quantity * contamination_pct
         
         # 3. Update Bin Attributes
         b.fill_level = new_total
@@ -50,13 +53,15 @@ class WasteMonitor:
         b.contamination_level = total_incorrect / new_total if new_total > 0 else 0.0
         
         print(f"SUCCESS: Added {quantity}kg of {waste_type} to Bin {bin_id}.")
-        print(f"  New Fill: {b.get_fill_percentage():.1f}% | Contamination: {b.contamination_level*100:.1f}%")
-
+        print(f"  System Detected: {contamination_pct*100:.1f}% contamination.")
+        print(f"  New Total Fill: {b.get_fill_percentage():.1f}% | Total Contamination: {b.contamination_level*100:.1f}%")
+        
         return {
             "success": True,
             "bin_id": bin_id,
             "fill_percentage": b.get_fill_percentage(),
-            "contamination_level": b.contamination_level
+            "contamination_detected": contamination_pct,
+            "total_contamination": b.contamination_level
         }
 
     def get_bins_approaching_capacity(self, threshold=80.0):
@@ -77,7 +82,8 @@ class WasteMonitor:
                 "source_type": b.source_type,
                 "fill_percentage": round(b.get_fill_percentage(), 1),
                 "contamination": round(b.contamination_level * 100, 1),
-                "location_id": b.location_id
+                "location_id": b.location_id,
+                "assigned_vehicle": b.assigned_vehicle
             })
         return statuses
 

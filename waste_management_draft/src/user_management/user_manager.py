@@ -1,5 +1,5 @@
-from user import User
-import csv_handler
+from user_management.user import User
+from user_management import csv_handler
 
 class UserManager:
     def __init__(self):

@@ -12,6 +12,7 @@ class Bin:
         self.source_type = source_type # e.g., 'Hospital', 'Apartment', 'Commercial'
         self.location_id = location_id # The ID of the node in the distance graph
         self.contamination_level = 0.0 # Percentage of incorrect waste mixed in
+        self.assigned_vehicle = None   # Tracks which vehicle is on the way
 
         # --- Phase 2 additions ---
         self._initial_fill = 0.0
@@ -27,6 +28,7 @@ class Bin:
         """Resets the bin to its initial state (empty and clean)."""
         self.fill_level = self._initial_fill
         self.contamination_level = self._initial_contamination
+        self.assigned_vehicle = None
 
     def __repr__(self):
         return f"Bin({self.bin_id}, {self.waste_type}, {self.get_fill_percentage():.1f}%)"
@@ -45,8 +47,11 @@ class Vehicle:
 
         # --- Phase 2 additions ---
         self._home_location_id = location_id  # Remember depot for reset
-        self.assigned_facility = None  # Facility ID this vehicle is heading to
         self.collected_waste_type = None  # The type of waste currently loaded
+        self.current_task = "Idle"       # Current activity (e.g., Collecting, Routing)
+        self.current_target = "N/A"      # The specific bin or facility ID
+        self.last_task = "None"          # Persistent record of last action
+        self.last_target = "N/A"
 
     def can_collect(self, bin_obj):
         """Checks if the vehicle is compatible with the bin's waste type and has capacity."""
@@ -67,6 +72,10 @@ class Vehicle:
         self.location_id = self._home_location_id
         self.assigned_facility = None
         self.collected_waste_type = None
+        self.current_task = "Idle"
+        self.current_target = "N/A"
+        self.last_task = "None"
+        self.last_target = "N/A"
 
     def __repr__(self):
         return f"Vehicle({self.vehicle_id}, {self.vehicle_type}, Load: {self.current_load}/{self.total_capacity})"

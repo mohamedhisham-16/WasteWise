@@ -1,8 +1,9 @@
 import csv
 import os
 
-# File to store all disposal events
-LOG_FILE = os.path.join("logs", "disposal_events.csv")
+# Log file path relative to the project root (ensuring logs are consistent)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+LOG_FILE = os.path.join(BASE_DIR, "logs", "disposal_events.csv")
 HEADERS = ["input_id", "user_id", "category", "quantity", "contamination", "penalty", "timestamp"]
 
 def _ensure_dir():

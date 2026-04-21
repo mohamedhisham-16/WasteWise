@@ -116,8 +116,21 @@ class SimulationEngine:
             self.log_event("COLLECT", f"  Vehicle {vehicle.vehicle_id} -> Bin {bin_obj.bin_id} "
                            f"({bin_obj.waste_type}, {bin_obj.fill_level:.1f}kg)")
             
+            # Track assignment for GUI visibility
+            vehicle.current_task = "Collecting"
+            vehicle.current_target = bin_obj.bin_id
+            bin_obj.assigned_vehicle = vehicle.vehicle_id
+            
             self.vehicle_allocator.update_allocation(vehicle, bin_obj)
             self.monitor.clear_bin(bin_obj.bin_id)
+            
+            # Record last action for GUI persistence
+            vehicle.last_task = "Collected"
+            vehicle.last_target = bin_obj.bin_id
+            
+            # Reset bin assignment after clearing
+            bin_obj.assigned_vehicle = None
+            
             collection_pairs.append((vehicle, bin_obj))
             summary["bins_collected"] += 1
             summary["vehicles_dispatched"] += 1
@@ -131,9 +144,11 @@ class SimulationEngine:
                 facility = self.facility_allocator.allocate_facility(vehicle, self.graph)
 
                 if facility is None:
-                    # Only log failure if we haven't logged it for this vehicle recently, 
-                    # or keep it simple for now.
                     continue
+
+                # Set routing task for visibility
+                vehicle.current_task = "Routing"
+                vehicle.current_target = facility.facility_id
 
                 # Unload at facility
                 success = self.facility_allocator.process_vehicle_unload(vehicle, facility)
