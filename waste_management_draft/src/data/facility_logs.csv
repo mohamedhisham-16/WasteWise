@@ -1,1 +1,14 @@
 timestamp,facility_id,event_type,details,redirected_to
+2026-05-19 00:48:22,F001,FAILOVER_REROUTE,Rerouted 200.0kg to partner facility F005 (Compost Unit),F005
+2026-05-19 00:48:22,F001,FAILOVER_REROUTE,Rerouted 100.0kg to partner facility F005 (Compost Unit),F005
+2026-05-19 00:48:22,F001,FAILOVER_FAILED,No active partner facility available for Compost Unit! 150.0kg of waste stranded.,None
+2026-05-19 00:48:22,F001,FAILOVER_REDIRECT,Redirected 100.0kg due to high emissions/inactivity,F005
+2026-05-19 00:48:22,F002,FAILOVER_REDIRECT,Redirected 50.0kg due to high emissions/inactivity,F006
+2026-05-19 00:48:22,F003,FAILOVER_REDIRECT,Redirected 50.0kg due to high emissions/inactivity,F007
+2026-05-19 00:48:22,F004,FAILOVER_REDIRECT,Redirected 50.0kg due to high emissions/inactivity,F008
+2026-05-19 00:48:22,F001,EMISSION_LIMIT_EXCEEDED,Facility exceeded emission limit of 150.0 kg (Current: 151.50 kg),None
+2026-05-19 00:48:22,F001,FAILOVER_REROUTE,Rerouted 50.0kg to partner facility F005 (Compost Unit),F005
+2026-05-19 00:48:22,F002,FAILOVER_REDIRECT,Redirected 110.0kg due to high emissions/inactivity,F006
+2026-05-19 00:48:22,F001,FAILOVER_REDIRECT,Redirected 90.0kg due to high emissions/inactivity,F005
+2026-05-19 00:48:22,F002,FAILOVER_REDIRECT,Redirected 110.0kg due to high emissions/inactivity,F006
+2026-05-19 00:48:22,F001,FAILOVER_REDIRECT,Redirected 90.0kg due to high emissions/inactivity,F005

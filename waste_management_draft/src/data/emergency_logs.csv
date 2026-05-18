@@ -1,3 +1,1 @@
 timestamp,bin_id,reason,vehicle_assigned,status
-2026-05-18 21:48:27,B003,Hazardous Waste Overflow Threat,None,ACTIVE
-2026-05-18 21:48:28,B003,Resolved,V003,CLOSED

@@ -39,12 +39,24 @@ def create_sample_vehicles():
     return vehicles
 
 def create_sample_facilities():
-    """Creates processing plants for each waste category."""
+    """Creates processing plants for each waste category.
+    
+    Each waste type has TWO facilities for redundancy.
+    If one facility is shut down (manually or via emissions), waste
+    is automatically rerouted to its backup partner by the FacilityAllocator.
+    """
     facilities = [
+        # Primary facilities
         Facility("F001", "Compost Unit",      1000.0, ["Biodegradable"],  0.0, "Compost Center"),
         Facility("F002", "Recycling Plant",   1500.0, ["Recyclable"],     0.0, "Recycling Hub"),
         Facility("F003", "Hazmat Processor",  500.0,  ["Hazardous"],      0.0, "Hazmat Disposal"),
         Facility("F004", "E-Waste Recycler",  300.0,  ["Electronic"],     0.0, "E-Waste Hub"),
+
+        # Backup / Redundant facilities (failover targets)
+        Facility("F005", "Compost Unit",      800.0,  ["Biodegradable"],  0.0, "South Compost Site"),
+        Facility("F006", "Recycling Plant",   1200.0, ["Recyclable"],     0.0, "East Recycling Yard"),
+        Facility("F007", "Hazmat Processor",  400.0,  ["Hazardous"],      0.0, "West Hazmat Depot"),
+        Facility("F008", "E-Waste Recycler",  250.0,  ["Electronic"],     0.0, "North E-Waste Center"),
     ]
     return facilities
 
@@ -79,6 +91,23 @@ def create_city_graph():
 
     graph.add_edge("Metro Hospital",  "Hazmat Disposal", 3)
     graph.add_edge("Hazmat Disposal",  "E-Waste Hub", 4)
+
+    # Backup facility location connections
+    graph.add_edge("South Compost Site",    "South Depot", 3)
+    graph.add_edge("South Compost Site",    "Compost Center", 5)
+    graph.add_edge("South Compost Site",    "Industrial Zone", 4)
+
+    graph.add_edge("East Recycling Yard",   "Recycling Hub", 3)
+    graph.add_edge("East Recycling Yard",   "E-Waste Hub", 4)
+    graph.add_edge("East Recycling Yard",   "Central Plaza", 5)
+
+    graph.add_edge("West Hazmat Depot",     "Hazmat Disposal", 4)
+    graph.add_edge("West Hazmat Depot",     "North Depot", 5)
+    graph.add_edge("West Hazmat Depot",     "Pine Heights", 3)
+
+    graph.add_edge("North E-Waste Center",  "E-Waste Hub", 5)
+    graph.add_edge("North E-Waste Center",  "North Depot", 4)
+    graph.add_edge("North E-Waste Center",  "Greenwood Suburb", 3)
 
     return graph
 

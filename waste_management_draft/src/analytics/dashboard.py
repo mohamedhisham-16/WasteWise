@@ -192,11 +192,11 @@ class AnalyticsDashboard:
         list_frame = tk.LabelFrame(frame, text="Processing Facility Operations Registry", bg=card_bg, fg=fg, bd=1, relief=tk.SOLID, padx=15, pady=10)
         list_frame.pack(fill=tk.BOTH, expand=True, pady=10)
         
-        cols = ("Facility ID", "Type", "Current Load (kg)", "Max Capacity (kg)", "CO2 Emissions (kg)", "Processing Status", "Activity Status")
-        tree = ttk.Treeview(list_frame, columns=cols, show='headings', height=8)
+        cols = ("Facility ID", "Type", "Current Load (kg)", "Max Capacity (kg)", "CO2 Emissions (kg)", "Processing Status", "Activity Status", "Backup Partner")
+        tree = ttk.Treeview(list_frame, columns=cols, show='headings', height=10)
         for c in cols:
             tree.heading(c, text=c)
-            tree.column(c, width=130, anchor=tk.CENTER)
+            tree.column(c, width=120, anchor=tk.CENTER)
         tree.pack(fill=tk.BOTH, expand=True, pady=5)
         
         def refresh_facilities():
@@ -217,6 +217,10 @@ class AnalyticsDashboard:
                         act_status = "⛔ STOPPED (MANUAL)"
                 else:
                     act_status = "🟢 ACTIVE"
+                
+                # Find backup partner
+                partner = self.engine.facility_allocator.get_partner_facility(f)
+                partner_str = partner.facility_id if partner else "⚠️ NONE"
                     
                 tree.insert('', 'end', values=(
                     f.facility_id,
@@ -225,7 +229,8 @@ class AnalyticsDashboard:
                     f"{f.max_daily_capacity:.1f}",
                     f"{f.emissions:.1f} / {f.emission_limit:.1f}",
                     proc_status,
-                    act_status
+                    act_status,
+                    partner_str
                 ))
                 
         # Toggle start/stop button action
@@ -242,7 +247,22 @@ class AnalyticsDashboard:
                     facility.is_active = False
                     logger.log_facility_event(facility.facility_id, "MANUAL_SHUTDOWN", 
                                                 f"Facility manually stopped by administrator.")
-                    messagebox.showinfo("Facility Stopped", f"Facility {fid} has been shut down.")
+                    
+                    # Auto-reroute existing load to the partner facility
+                    reroute_msg = ""
+                    if facility.current_load > 0:
+                        load_before = facility.current_load
+                        partner = self.engine.facility_allocator.reroute_waste_on_shutdown(facility)
+                        if partner:
+                            reroute_msg = (f"\n\n🔀 {load_before:.1f}kg of waste has been "
+                                          f"automatically rerouted to backup facility {partner.facility_id} "
+                                          f"({partner.facility_type}).")
+                        else:
+                            reroute_msg = (f"\n\n⚠️ WARNING: No active backup facility available! "
+                                          f"{load_before:.1f}kg of waste remains stranded.")
+                    
+                    messagebox.showinfo("Facility Stopped", 
+                                       f"Facility {fid} has been shut down.{reroute_msg}")
                 else:
                     # If high emissions exceeded, warn first or let it override
                     if facility.emissions >= facility.emission_limit:

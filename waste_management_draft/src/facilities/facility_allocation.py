@@ -9,6 +9,71 @@ class FacilityAllocator:
     def __init__(self, facilities):
         self.facilities = facilities  # List of Facility objects
 
+    def get_partner_facility(self, facility):
+        """
+        Finds the redundant backup partner for a given facility.
+        A partner is another facility of the same type (same facility_type)
+        that is currently active and has remaining capacity.
+        
+        Returns:
+            The partner Facility object, or None if no active partner found.
+        """
+        for f in self.facilities:
+            if (f.facility_id != facility.facility_id 
+                and f.facility_type == facility.facility_type 
+                and f.is_active):
+                return f
+        return None
+
+    def reroute_waste_on_shutdown(self, shut_down_facility):
+        """
+        When a facility is shut down, automatically reroute its current load
+        to the active partner facility of the same type.
+        
+        Returns:
+            The partner facility that received the rerouted waste, or None if no partner available.
+        """
+        if shut_down_facility.current_load <= 0:
+            return None
+            
+        partner = self.get_partner_facility(shut_down_facility)
+        if partner is None:
+            logger.log_facility_event(
+                shut_down_facility.facility_id, 
+                "FAILOVER_FAILED", 
+                f"No active partner facility available for {shut_down_facility.facility_type}! "
+                f"{shut_down_facility.current_load:.1f}kg of waste stranded."
+            )
+            print(f"[FAILOVER WARNING] Facility {shut_down_facility.facility_id} shut down with "
+                  f"{shut_down_facility.current_load:.1f}kg but no partner available!")
+            return None
+        
+        rerouted_amount = shut_down_facility.current_load
+        remaining_at_partner = partner.max_daily_capacity - partner.current_load
+        
+        # Transfer as much as possible to the partner
+        transfer_amount = min(rerouted_amount, remaining_at_partner)
+        partner.current_load += transfer_amount
+        shut_down_facility.current_load -= transfer_amount
+        
+        shut_down_facility.redirected_count += 1
+        
+        logger.log_facility_event(
+            shut_down_facility.facility_id, 
+            "FAILOVER_REROUTE", 
+            f"Rerouted {transfer_amount:.1f}kg to partner facility {partner.facility_id} "
+            f"({partner.facility_type})",
+            redirected_to=partner.facility_id
+        )
+        print(f"[FAILOVER] {transfer_amount:.1f}kg rerouted from {shut_down_facility.facility_id} "
+              f"to {partner.facility_id} ({partner.facility_type})")
+        
+        if shut_down_facility.current_load > 0:
+            print(f"[FAILOVER WARNING] Partner {partner.facility_id} at capacity! "
+                  f"{shut_down_facility.current_load:.1f}kg remains stranded at {shut_down_facility.facility_id}.")
+        
+        return partner
+
     def allocate_facility(self, vehicle, distance_graph=None):
         """
         Finds the best active facility for a vehicle to unload its waste.
@@ -71,7 +136,8 @@ class FacilityAllocator:
                     f"Redirected {load_amount:.1f}kg due to high emissions/inactivity",
                     redirected_to=best_active_facility.facility_id
                 )
-                print(f"[FAILOVER] Facility {primary_facility.facility_id} inactive! Redirecting waste to {best_active_facility.facility_id}")
+                print(f"[FAILOVER] Facility {primary_facility.facility_id} inactive! "
+                      f"Redirecting waste to {best_active_facility.facility_id} ({best_active_facility.facility_type})")
             else:
                 print(f"[FAILOVER WARNING] Facility {primary_facility.facility_id} inactive and no active alternative found!")
 
@@ -95,6 +161,14 @@ class FacilityAllocator:
             print(f"  Vehicle {vehicle.vehicle_id} unloaded {load_amount:.1f}kg of "
                   f"{waste_type} at {facility.facility_id}.")
             
+            # If the facility got deactivated due to emissions during this unload,
+            # automatically reroute its accumulated load to the partner
+            if not facility.is_active:
+                partner = self.reroute_waste_on_shutdown(facility)
+                if partner:
+                    print(f"  [AUTO-FAILOVER] Facility {facility.facility_id} exceeded emissions! "
+                          f"Load auto-rerouted to {partner.facility_id}.")
+            
             # Reset vehicle after successful unloading
             vehicle.current_load = 0.0
             vehicle.collected_waste_type = None
@@ -115,6 +189,10 @@ class FacilityAllocator:
         """Returns a summary of all facility states for the GUI/reports."""
         statuses = []
         for f in self.facilities:
+            # Find this facility's partner for status display
+            partner = self.get_partner_facility(f)
+            partner_id = partner.facility_id if partner else "NONE"
+            
             statuses.append({
                 "facility_id": f.facility_id,
                 "facility_type": f.facility_type,
@@ -125,6 +203,7 @@ class FacilityAllocator:
                 "location_id": f.location_id,
                 "is_active": f.is_active,
                 "emissions": round(f.emissions, 2),
-                "redirected_count": f.redirected_count
+                "redirected_count": f.redirected_count,
+                "partner_facility": partner_id
             })
         return statuses
