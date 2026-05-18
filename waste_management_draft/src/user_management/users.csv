@@ -1,7 +1,9 @@
-user_id,name,role,zone
-A001,Admin Alice,admin,factory
-M001,Medical Mary,resident,medical
-R002,Kvaratskhelia,Resident,residential
-R003,Zlatan,Resident,residential
-R001,Ibrahimovic,Resident,residential
-M002,Medical Messi,resident,medical
+user_id,name,password,role,zone,violation_score
+A001,Admin Alice,alice123,admin,factory,0
+M001,Medical Mary,mary123,resident,medical,0
+R002,Kvaratskhelia,kvara123,Resident,residential,0
+R003,Zlatan,zlatan123,Resident,residential,0
+R001,Ibrahimovic,ibra123,Resident,residential,0
+M002,Medical Messi,messi123,resident,medical,0
+A101,AdminOne,admin123,admin,Central,0
+U101,Ravi,ravi123,resident,ZoneA,2

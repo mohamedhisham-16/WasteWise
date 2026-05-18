@@ -11,9 +11,10 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from data_loader import load_all
 from engine import SimulationEngine
 
-# User Management Imports
+# User Management & Auth Imports
 from user_management.user_manager import UserManager
 from user_management.input_handler import InputProcessor
+from auth import auth
 
 class WasteWiseApp(tk.Tk):
     def __init__(self):
@@ -65,18 +66,27 @@ class WasteWiseApp(tk.Tk):
             self.log_text.configure(bg=input_bg, fg=input_fg, insertbackground=input_fg)
             
         if hasattr(self, 'current_user') and self.current_user:
-            self.refresh_admin_ui() if self.current_user.role.lower() == 'admin' else self.refresh_resident_ui()
+            if self.current_user.role.lower() == 'admin':
+                if hasattr(self, 'admin_bin_widgets'):
+                    self.refresh_admin_ui()
+            else:
+                if hasattr(self, 'res_bin_widgets'):
+                    self.refresh_resident_ui()
 
     def clear_window(self):
         for widget in self.winfo_children():
             widget.destroy()
+        if hasattr(self, 'admin_bin_widgets'):
+            del self.admin_bin_widgets
+        if hasattr(self, 'res_bin_widgets'):
+            del self.res_bin_widgets
 
     def show_login(self):
         self.current_user = None
         self.clear_window()
         self.apply_theme()
         self.title("WasteWise Login")
-        self.geometry("400x350")
+        self.geometry("400x380")
         
         theme_btn = ttk.Button(self, text="Toggle Theme", command=self.toggle_theme)
         theme_btn.place(relx=0.95, rely=0.05, anchor=tk.NE)
@@ -88,25 +98,33 @@ class WasteWiseApp(tk.Tk):
         
         ttk.Label(frame, text="Enter User ID:").pack(anchor=tk.W)
         ent_id = ttk.Entry(frame, width=30)
-        ent_id.pack(pady=(5, 20))
+        ent_id.pack(pady=(5, 10))
         ent_id.focus_set()
         
-        lbl_error = ttk.Label(frame, text="", foreground="red")
+        ttk.Label(frame, text="Enter Password:").pack(anchor=tk.W)
+        ent_pwd = ttk.Entry(frame, width=30, show="*")
+        ent_pwd.pack(pady=(5, 20))
         
         def do_login(event=None):
             uid = ent_id.get().strip()
-            user = self.user_manager.search_user(uid)
+            pwd = ent_pwd.get().strip()
+            
+            user = auth.login(uid, pwd)
             if user:
+                self.current_user = user
                 if user.role.lower() == 'admin':
                     self.show_admin(user)
                 else:
                     self.show_resident(user)
             else:
-                lbl_error.config(text="Invalid User ID.")
+                messagebox.showerror("Login Failed", "Invalid User ID or Password")
+                ent_id.delete(0, tk.END)
+                ent_pwd.delete(0, tk.END)
+                ent_id.focus_set()
 
         ent_id.bind("<Return>", do_login)
-        ttk.Button(frame, text="Login", command=do_login).pack(fill=tk.X)
-        lbl_error.pack(pady=10)
+        ent_pwd.bind("<Return>", do_login)
+        ttk.Button(frame, text="Login", command=do_login).pack(fill=tk.X, pady=(10, 0))
 
     # -------------------------------------------------------------------------
     #  ADMIN DASHBOARD VIEW
@@ -124,7 +142,7 @@ class WasteWiseApp(tk.Tk):
         ttk.Button(head, text="Logout", command=self.show_login).pack(side=tk.RIGHT, padx=10)
         ttk.Button(head, text="Toggle Theme", command=self.toggle_theme).pack(side=tk.RIGHT, padx=10)
         ttk.Button(head, text="Manage Users", command=self.show_user_management).pack(side=tk.RIGHT, padx=10)
-        ttk.Label(head, text=f"Admin: {user.name}", font=("Segoe UI", 10, "bold")).pack(side=tk.RIGHT, padx=10)
+        ttk.Label(head, text=f"Logged in as: {user.name} (Admin)", font=("Segoe UI", 10, "bold")).pack(side=tk.RIGHT, padx=10)
 
         # Main Layout
         self.left_panel = ttk.Frame(self, padding=10)
@@ -258,18 +276,18 @@ class WasteWiseApp(tk.Tk):
         ttk.Label(head, text="System Users", font=("Segoe UI", 12, "bold")).pack(side=tk.LEFT)
         ttk.Button(head, text="Add New User", command=lambda: self.open_add_user_dialog(win)).pack(side=tk.RIGHT)
 
-        cols = ("Name", "ID", "Role", "Zone")
+        cols = ("Name", "ID", "Role", "Zone", "Violation Score")
         tree = ttk.Treeview(win, columns=cols, show='headings')
         for c in cols:
             tree.heading(c, text=c)
-            tree.column(c, width=120)
+            tree.column(c, width=100)
         tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         def refresh_list():
             for i in tree.get_children(): tree.delete(i)
             # Accessing user_manager's internal list
             for u in self.user_manager.users:
-                tree.insert('', 'end', values=(u.name, u.user_id, u.role, u.zone))
+                tree.insert('', 'end', values=(u.name, u.user_id, u.role, u.zone, u.violation_score))
 
         def delete_selected():
             sel = tree.selection()
@@ -293,7 +311,7 @@ class WasteWiseApp(tk.Tk):
     def open_add_user_dialog(self, parent_win):
         dialog = tk.Toplevel(parent_win)
         dialog.title("Add New User")
-        dialog.geometry("350x400")
+        dialog.geometry("350x480")
         dialog.configure(bg="#2b2b2b" if self.is_dark_mode else "#f4f4f9")
         dialog.grab_set()
 
@@ -306,6 +324,9 @@ class WasteWiseApp(tk.Tk):
         ttk.Label(content, text="Login ID:").pack(anchor=tk.W)
         ent_id = ttk.Entry(content, width=30); ent_id.pack(pady=(0, 10))
 
+        ttk.Label(content, text="Password:").pack(anchor=tk.W)
+        ent_pwd = ttk.Entry(content, width=30); ent_pwd.pack(pady=(0, 10))
+
         ttk.Label(content, text="Role:").pack(anchor=tk.W)
         combo_role = ttk.Combobox(content, values=["Admin", "Resident"], state="readonly")
         combo_role.pack(pady=(0, 10)); combo_role.current(1)
@@ -314,25 +335,37 @@ class WasteWiseApp(tk.Tk):
         zones = list(self.input_processor.mappings.get('zone_mappings', {}).keys())
         combo_zone = ttk.Combobox(content, values=zones, state="readonly")
         combo_zone.pack(pady=(0, 10)); combo_zone.current(0)
+        
+        ttk.Label(content, text="Initial Violation Score:").pack(anchor=tk.W)
+        ent_violation = ttk.Entry(content, width=30)
+        ent_violation.insert(0, "0")
+        ent_violation.pack(pady=(0, 10))
 
         def save():
             name = ent_name.get().strip()
             uid = ent_id.get().strip()
+            pwd = ent_pwd.get().strip()
             role = combo_role.get()
             zone = combo_zone.get()
+            try:
+                violation = int(ent_violation.get().strip())
+                if violation < 0: raise ValueError
+            except:
+                messagebox.showerror("Error", "Violation Score must be a positive integer.")
+                return
 
-            if not name or not uid:
+            if not name or not uid or not pwd:
                 messagebox.showerror("Error", "All fields are required.")
                 return
 
-            if self.user_manager.add_user(uid, name, role, zone):
+            if self.user_manager.add_user(uid, name, role, zone, password=pwd, violation_score=violation):
                 messagebox.showinfo("Success", f"User {uid} created!")
                 dialog.destroy()
                 parent_win.refresh_ptr()
             else:
                 messagebox.showerror("Error", "User ID already exists.")
 
-        ttk.Button(content, text="Create User", command=save, padding=10).pack(pady=20, fill=tk.X)
+        ttk.Button(content, text="Create User", command=save, padding=10).pack(pady=10, fill=tk.X)
     #  RESIDENT VIEW
     # -------------------------------------------------------------------------
     def show_resident(self, user):
@@ -345,7 +378,7 @@ class WasteWiseApp(tk.Tk):
         # Header
         head = ttk.Frame(self, padding=10)
         head.pack(fill=tk.X)
-        ttk.Label(head, text=f"Welcome, {user.name}", style="Header.TLabel").pack(side=tk.LEFT)
+        ttk.Label(head, text=f"Logged in as: {user.name} (Resident)", style="Header.TLabel").pack(side=tk.LEFT)
         ttk.Button(head, text="Logout", command=self.show_login).pack(side=tk.RIGHT)
         ttk.Button(head, text="Toggle Theme", command=self.toggle_theme).pack(side=tk.RIGHT, padx=5)
         ttk.Label(head, text=f"Zone: {user.zone.capitalize()}", foreground="#666" if not self.is_dark_mode else "#aaa").pack(side=tk.RIGHT, padx=15)
@@ -370,33 +403,45 @@ class WasteWiseApp(tk.Tk):
                 val.pack(side=tk.LEFT)
                 self.res_bin_widgets[b.bin_id] = {"pb": pb, "val": val, "obj": b}
 
-        ttk.Button(self, text="Dispose Waste", command=self.res_open_dump_dialog, padding=10).pack(pady=30)
-        self.refresh_resident_ui()
-
-    def refresh_resident_ui(self):
-        for bid, w in self.res_bin_widgets.items():
-            b = w["obj"]
-            fill = b.get_fill_percentage()
-            w["pb"]["value"] = fill
-            w["val"].config(text=f"{fill:.1f}%")
-
-    def res_open_dump_dialog(self):
-        dialog = tk.Toplevel(self)
-        dialog.title("Dispose Waste")
-        dialog.geometry("350x250")
-        dialog.configure(bg="#2b2b2b" if self.is_dark_mode else "#f4f4f9")
-        dialog.grab_set()
+        # Dispose Waste Section (Inline)
+        dispose_frame = ttk.LabelFrame(content, text="Dispose Waste", padding=15)
+        dispose_frame.pack(fill=tk.X, pady=(20, 0))
         
-        ttk.Label(dialog, text="Select Bin:").pack(pady=(15, 0))
+        ttk.Label(dispose_frame, text="Select Bin:").grid(row=0, column=0, padx=10, pady=5, sticky=tk.W)
         bids = list(self.res_bin_widgets.keys())
-        combo = ttk.Combobox(dialog, values=bids, state="readonly")
-        combo.pack(pady=5); combo.current(0)
+        combo = ttk.Combobox(dispose_frame, values=bids, state="readonly", width=15)
+        combo.grid(row=0, column=1, padx=10, pady=5, sticky=tk.W)
         
-        ttk.Label(dialog, text="Amount (kg):").pack(pady=(10, 0))
-        ent = ttk.Entry(dialog); ent.pack(pady=5); ent.focus_set()
+        ttk.Label(dispose_frame, text="Amount (kg):").grid(row=0, column=2, padx=10, pady=5, sticky=tk.W)
+        ent = ttk.Entry(dispose_frame, width=15)
+        ent.grid(row=0, column=3, padx=10, pady=5, sticky=tk.W)
+
+        # Capacity Status Label
+        lbl_capacity = ttk.Label(dispose_frame, text="", font=("Segoe UI", 9, "italic"))
+        lbl_capacity.grid(row=1, column=0, columnspan=5, padx=10, pady=(10, 0), sticky=tk.W)
+
+        def update_capacity_info(*args):
+            bid = combo.get()
+            if not bid:
+                lbl_capacity.config(text="")
+                return
+            b_obj = self.res_bin_widgets[bid]["obj"]
+            available = b_obj.capacity - b_obj.fill_level
+            lbl_capacity.config(
+                text=f"Bin Status: {b_obj.fill_level:.1f}kg / {b_obj.capacity:.1f}kg filled ({available:.1f}kg capacity left)"
+            )
+
+        combo.bind("<<ComboboxSelected>>", update_capacity_info)
+
+        if bids:
+            combo.current(0)
+            update_capacity_info()
         
         def commit(event=None):
             bid = combo.get()
+            if not bid:
+                messagebox.showerror("Error", "No bins available.")
+                return
             try:
                 amt = float(ent.get())
                 if amt <= 0: raise ValueError
@@ -408,15 +453,25 @@ class WasteWiseApp(tk.Tk):
             res = self.engine.add_waste(bid, b_obj.waste_type, amt, user_id=self.current_user.user_id)
             
             if res and res.get("success"):
-                dialog.destroy()
+                ent.delete(0, tk.END)
                 self.refresh_resident_ui()
+                update_capacity_info()
                 det = res.get('contamination_detected', 0) * 100
                 messagebox.showinfo("Success", f"Waste added! Smart sensor detected {det:.1f}% contamination.")
             else:
                 messagebox.showerror("Full", "Cannot add waste. Bin might be full.")
 
         ent.bind("<Return>", commit)
-        ttk.Button(dialog, text="Submit", command=commit).pack(pady=20)
+        ttk.Button(dispose_frame, text="Submit", command=commit).grid(row=0, column=4, padx=20, pady=5)
+
+        self.refresh_resident_ui()
+
+    def refresh_resident_ui(self):
+        for bid, w in self.res_bin_widgets.items():
+            b = w["obj"]
+            fill = b.get_fill_percentage()
+            w["pb"]["value"] = fill
+            w["val"].config(text=f"{fill:.1f}%")
 
 if __name__ == "__main__":
     app = WasteWiseApp()
