@@ -1,0 +1,19 @@
+timestamp,vehicle_id,route,distance_km,bins_collected,waste_collected_kg
+2026-05-18 18:15,V01,Depot -> B01 -> B02 -> F01,20.00,"B01, B02",80.00
+2026-05-18 18:16,V003,Depot_2 -> Node_I1 -> Node_C1 -> Node_C2 -> Node_R2 -> Node_H1 -> Node_R2 -> Node_C2 -> Node_C1 -> Node_I1,25.00,"B004, B009",93.54
+2026-05-18 18:16,V001,Depot_1 -> Node_R1 -> Node_R2 -> Node_H1 -> Node_R2 -> Node_C2 -> Node_R2 -> Node_R1,19.00,"B005, B008, B001",256.10
+2026-05-18 18:16,V004,Depot_2 -> Node_I1 -> Node_C1 -> Node_I1,11.00,"B007, B010",144.99
+2026-05-18 18:16,V002,Depot_1 -> Node_R1 -> Node_C1,6.00,B006,95.14
+2026-05-18 18:18,V003,Depot_2 -> Node_I1 -> Node_C1 -> Node_C2 -> Node_R2 -> Node_H1 -> Node_R2 -> Node_C2 -> Node_C1 -> Node_I1,25.00,"B004, B003, B009",143.29
+2026-05-18 18:18,V001,Depot_1 -> Node_R1 -> Node_R2 -> Node_H1 -> Node_R2 -> Node_C2 -> Node_R2 -> Node_R1,19.00,"B005, B008, B001",266.80
+2026-05-18 18:18,V004,Depot_2 -> Node_I1 -> Node_C1,7.00,B007,99.84
+2026-05-18 18:18,V002,Depot_1 -> Node_R1 -> Node_C1,6.00,B006,106.91
+2026-05-18 18:18,V004,Node_F4 -> Node_F2 -> Node_I1,8.00,B010,55.46
+2026-05-18 18:27,V003,Depot_2 -> Node_I1 -> Node_C1 -> Node_C2 -> Node_R2 -> Node_H1 -> Node_R2 -> Node_C2 -> Node_C1 -> Node_I1,25.00,"B004, B003, B009",131.97
+2026-05-18 18:27,V001,Depot_1 -> Node_R1 -> Node_R2 -> Node_H1 -> Node_R2 -> Node_C2 -> Node_R2 -> Node_R1,19.00,"B005, B008, B001",224.68
+2026-05-18 18:27,V004,Depot_2 -> Node_I1 -> Node_C1 -> Node_I1,11.00,"B007, B010",141.29
+2026-05-18 18:27,V002,Depot_1 -> Node_R1,3.00,B002,59.31
+2026-05-18 18:28,V003,South Depot -> Industrial Zone -> Downtown Market -> Central Plaza -> Pine Heights -> Metro Hospital -> Pine Heights -> Central Plaza -> Downtown Market -> Industrial Zone,25.00,"B004, B003, B009",115.56
+2026-05-18 18:28,V001,North Depot -> Greenwood Suburb -> Pine Heights -> Metro Hospital -> Pine Heights -> Central Plaza -> Pine Heights -> Greenwood Suburb,19.00,"B005, B008, B001",252.67
+2026-05-18 18:28,V004,South Depot -> Industrial Zone -> Downtown Market -> Industrial Zone,11.00,"B007, B010",149.25
+2026-05-18 18:28,V002,North Depot -> Greenwood Suburb -> Downtown Market -> Greenwood Suburb,9.00,"B006, B002",183.79

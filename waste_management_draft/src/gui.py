@@ -220,12 +220,18 @@ class WasteWiseApp(tk.Tk):
 
         # Fleet / Logs
         ttk.Label(self.right_panel, text="Fleet Status", style="Header.TLabel").pack(anchor=tk.W)
-        cols = ('ID', 'Type', 'Load', 'Status', 'Last Action', 'Target')
+        cols = ('ID', 'Type', 'Load', 'Status', 'Last Action', 'Route', 'Distance', 'Bins Coll.')
         self.tree_veh = ttk.Treeview(self.right_panel, columns=cols, show='headings', height=7)
         for c in cols: 
             self.tree_veh.heading(c, text=c)
-            self.tree_veh.column(c, width=100)
+            if c == 'Route':
+                self.tree_veh.column(c, width=150)
+            elif c in ('Type', 'Last Action'):
+                self.tree_veh.column(c, width=90)
+            else:
+                self.tree_veh.column(c, width=65)
         self.tree_veh.pack(fill=tk.X, pady=10)
+        self.tree_veh.bind("<<TreeviewSelect>>", self.on_vehicle_click)
 
         ttk.Label(self.right_panel, text="Live Events Log", style="Header.TLabel").pack(anchor=tk.W)
         input_bg = "#3c3f41" if self.is_dark_mode else "#ffffff"
@@ -280,15 +286,113 @@ class WasteWiseApp(tk.Tk):
 
         for i in self.tree_veh.get_children(): self.tree_veh.delete(i)
         for v in self.engine.vehicles:
-            self.tree_veh.insert('', 'end', values=(v.vehicle_id, v.vehicle_type, f"{v.current_load:.1f}kg", 
-                                                    "Loaded" if v.current_load > 0 else "Idle",
-                                                    getattr(v, 'last_task', 'None'),
-                                                    getattr(v, 'last_target', 'N/A')))
+            route_str = " -> ".join(getattr(v, 'current_route', [])) if getattr(v, 'current_route', []) else "N/A"
+            self.tree_veh.insert('', 'end', values=(
+                v.vehicle_id, 
+                v.vehicle_type, 
+                f"{v.current_load:.1f}kg", 
+                "Loaded" if v.current_load > 0 else "Idle",
+                getattr(v, 'last_task', 'None'),
+                route_str,
+                f"{getattr(v, 'total_distance_travelled', 0.0):.1f} km",
+                getattr(v, 'bins_collected_count', 0)
+            ))
 
     def admin_log(self, msg):
         if hasattr(self, 'log_text'):
             self.log_text.insert(tk.END, msg + "\n")
             self.log_text.see(tk.END)
+
+    def on_vehicle_click(self, event=None):
+        selected = self.tree_veh.selection()
+        if not selected:
+            return
+        
+        item = self.tree_veh.item(selected[0])
+        if not item or not item.get('values'):
+            return
+            
+        veh_id = item['values'][0]
+        
+        # Find the vehicle object
+        vehicle = None
+        for v in self.engine.vehicles:
+            if v.vehicle_id == veh_id:
+                vehicle = v
+                break
+                
+        if not vehicle:
+            return
+            
+        self.show_vehicle_details_popup(vehicle)
+
+    def show_vehicle_details_popup(self, vehicle):
+        # Close active details popup if already open
+        if hasattr(self, 'details_popup') and self.details_popup.winfo_exists():
+            self.details_popup.destroy()
+            
+        popup = tk.Toplevel(self)
+        popup.title(f"Vehicle Detail - {vehicle.vehicle_id}")
+        popup.geometry("500x520")
+        popup.resizable(False, False)
+        self.details_popup = popup
+        
+        bg_col = "#2c2c2c" if self.is_dark_mode else "#f5f5f5"
+        fg_col = "#ffffff" if self.is_dark_mode else "#000000"
+        card_bg = "#3c3f41" if self.is_dark_mode else "#ffffff"
+        popup.configure(bg=bg_col)
+        
+        # Title
+        title_frame = tk.Frame(popup, bg=bg_col, pady=12)
+        title_frame.pack(fill=tk.X)
+        tk.Label(title_frame, text=f"🚛 FLEET DETAIL: {vehicle.vehicle_id}", 
+                 font=("Segoe UI", 14, "bold"), fg=fg_col, bg=bg_col).pack()
+        
+        # Core Info Box
+        info_frame = tk.LabelFrame(popup, text="Core Specifications", font=("Segoe UI", 10, "bold"),
+                                   bg=card_bg, fg=fg_col, bd=1, relief=tk.SOLID, padx=15, pady=8)
+        info_frame.pack(fill=tk.X, padx=20, pady=8)
+        
+        def add_info_row(parent, label, val):
+            row = tk.Frame(parent, bg=card_bg)
+            row.pack(fill=tk.X, pady=3)
+            tk.Label(row, text=label, font=("Segoe UI", 10, "bold"), fg=fg_col, bg=card_bg, width=18, anchor="w").pack(side=tk.LEFT)
+            tk.Label(row, text=val, font=("Segoe UI", 10), fg=fg_col, bg=card_bg, anchor="w").pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        add_info_row(info_frame, "Vehicle Type:", vehicle.vehicle_type)
+        add_info_row(info_frame, "Capacity Limit:", f"{vehicle.total_capacity:.1f} kg")
+        pct = (vehicle.current_load / vehicle.total_capacity * 100) if vehicle.total_capacity > 0 else 0
+        add_info_row(info_frame, "Current Load:", f"{vehicle.current_load:.1f} kg ({pct:.1f}%)")
+        add_info_row(info_frame, "Status:", "Loaded & Routing" if vehicle.current_load > 0 else "Idle / Available")
+        
+        # Stats Box
+        stats_frame = tk.LabelFrame(popup, text="Operational Statistics", font=("Segoe UI", 10, "bold"),
+                                    bg=card_bg, fg=fg_col, bd=1, relief=tk.SOLID, padx=15, pady=8)
+        stats_frame.pack(fill=tk.X, padx=20, pady=8)
+        
+        add_info_row(stats_frame, "Total Distance:", f"{getattr(vehicle, 'total_distance_travelled', 0.0):.2f} km")
+        add_info_row(stats_frame, "Bins Collected (All):", f"{getattr(vehicle, 'bins_collected_count', 0)} bins")
+        
+        bins_this_trip = getattr(vehicle, 'last_target', 'N/A')
+        if bins_this_trip == "N/A" or not bins_this_trip:
+            bins_this_trip = "None"
+        add_info_row(stats_frame, "Bins This Loop:", bins_this_trip)
+        
+        # Route Path Box
+        route_path = getattr(vehicle, 'current_route', [])
+        route_str = " -> ".join(route_path) if route_path else "N/A (No active loop)"
+        
+        route_frame = tk.LabelFrame(popup, text="Active Route Path", font=("Segoe UI", 10, "bold"),
+                                    bg=card_bg, fg=fg_col, bd=1, relief=tk.SOLID, padx=15, pady=8)
+        route_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=8)
+        
+        route_label = tk.Label(route_frame, text=route_str, font=("Consolas", 10, "bold"), 
+                               fg="#ff9900" if self.is_dark_mode else "#d97706", bg=card_bg, wraplength=420, justify="left")
+        route_label.pack(fill=tk.BOTH, expand=True)
+        
+        # Close
+        btn_close = ttk.Button(popup, text="Close Details", command=popup.destroy)
+        btn_close.pack(pady=(5, 12))
 
     def admin_simulate(self):
         self.admin_log("\n--- TICK: Adding Waste ---")

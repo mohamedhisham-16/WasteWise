@@ -119,12 +119,19 @@ class SimulationEngine:
 
         # --- Phase B: Assign Vehicles ---
         self.log_event("DISPATCH", "Assigning vehicles to bins...")
-        collection_pairs = []  # (vehicle, bin) pairs that succeeded
-
+        from routing.route_optimizer import generate_collection_route
+        
+        collected_bins_this_cycle = set()
+        
         for bin_obj, score in ranked:
+            # Skip if this bin has already been scheduled/collected in a route during this cycle
+            if bin_obj in collected_bins_this_cycle:
+                continue
+
             if getattr(bin_obj, 'is_emergency', False):
                 self.log_event("EMERGENCY", f"[EMERGENCY DISPATCH] FOR BIN {bin_obj.bin_id}: {bin_obj.emergency_reason}")
 
+            # Allocate vehicle based on the initial bin
             vehicle = self.vehicle_allocator.allocate_vehicle(bin_obj, self.graph)
 
             if vehicle is None:
@@ -135,34 +142,77 @@ class SimulationEngine:
                 bin_obj.failed_collection_attempts = getattr(bin_obj, 'failed_collection_attempts', 0) + 1
                 continue
 
-            # Perform the collection
-            self.log_event("COLLECT", f"  Vehicle {vehicle.vehicle_id} -> Bin {bin_obj.bin_id} "
-                           f"({bin_obj.waste_type}, {bin_obj.fill_level:.1f}kg)")
-            
-            # Track assignment for GUI visibility
-            vehicle.current_task = "Collecting"
-            vehicle.current_target = bin_obj.bin_id
-            bin_obj.assigned_vehicle = vehicle.vehicle_id
-            
-            is_emergency_active = getattr(bin_obj, 'is_emergency', False)
-            
-            self.vehicle_allocator.update_allocation(vehicle, bin_obj)
-            self.monitor.clear_bin(bin_obj.bin_id)
-            
-            # Resolve emergency logs and attributes if this bin was flagged
-            if is_emergency_active:
-                emergency_handler.resolve_emergency(bin_obj, vehicle.vehicle_id)
-                self.log_event("EMERGENCY", f"[EMERGENCY RESOLVED] Bin {bin_obj.bin_id} by Vehicle {vehicle.vehicle_id}.")
-            
-            # Record last action for GUI persistence
+            # Generate multi-bin collection route
+            eligible_pool = [b for b in alert_bins if b not in collected_bins_this_cycle]
+            route_nodes, bins_to_collect, route_distance = generate_collection_route(
+                vehicle, bin_obj, eligible_pool, self.graph, self.priority_scorer, self.facility_allocator
+            )
+
+            # Collect each bin in the route
+            bin_ids_str = ", ".join([b.bin_id for b in bins_to_collect])
+            self.log_event("ROUTE", f"Vehicle {vehicle.vehicle_id} collection loop: {' -> '.join(route_nodes)}")
+            self.log_event("ROUTE", f"  Route Distance: {route_distance:.1f} km")
+            self.log_event("COLLECT", f"  Vehicle {vehicle.vehicle_id} collected bins: {bin_ids_str}")
+
+            total_collected_weight = 0.0
+            for b in bins_to_collect:
+                # Mark as scheduled
+                collected_bins_this_cycle.add(b)
+                
+                # Perform the collection
+                self.log_event("COLLECT", f"    Collected {b.fill_level:.1f}kg from Bin {b.bin_id}")
+                
+                is_emergency_active = getattr(b, 'is_emergency', False)
+                total_collected_weight += b.fill_level
+                
+                # Update vehicle allocation / vehicle state
+                vehicle.bins_collected_count += 1
+                
+                # Assign vehicle for GUI visibility, clear, and reset
+                b.assigned_vehicle = vehicle.vehicle_id
+                self.vehicle_allocator.update_allocation(vehicle, b)
+                self.monitor.clear_bin(b.bin_id)
+                
+                # Resolve emergency if active
+                if is_emergency_active:
+                    emergency_handler.resolve_emergency(b, vehicle.vehicle_id)
+                    self.log_event("EMERGENCY", f"[EMERGENCY RESOLVED] Bin {b.bin_id} by Vehicle {vehicle.vehicle_id}.")
+                
+                b.assigned_vehicle = None
+                summary["bins_collected"] += 1
+
+            # Update final vehicle statistics
+            vehicle.current_route = route_nodes
+            vehicle.total_distance_travelled += route_distance
+            vehicle.is_available = False # Mark as busy during routing/unloading
+
+            # Persistent action record for GUI
             vehicle.last_task = "Collected"
-            vehicle.last_target = bin_obj.bin_id
-            
-            # Reset bin assignment after clearing
-            bin_obj.assigned_vehicle = None
-            
-            collection_pairs.append((vehicle, bin_obj))
-            summary["bins_collected"] += 1
+            vehicle.last_target = bin_ids_str
+
+            # Log to persistent CSV database
+            try:
+                from datetime import datetime
+                import csv
+                import os
+                csv_path = r"c:\NarenClg\Sem 2\Python\Project\WasteWise\waste_management_draft\src\data\route_logs.csv"
+                os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+                file_exists = os.path.exists(csv_path)
+                with open(csv_path, mode='a', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    if not file_exists:
+                        writer.writerow(["timestamp", "vehicle_id", "route", "distance_km", "bins_collected", "waste_collected_kg"])
+                    writer.writerow([
+                        datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        vehicle.vehicle_id,
+                        " -> ".join(route_nodes),
+                        f"{route_distance:.2f}",
+                        bin_ids_str,
+                        f"{total_collected_weight:.2f}"
+                    ])
+            except Exception as e:
+                print(f"Error logging route to CSV: {e}")
+
             summary["vehicles_dispatched"] += 1
 
         # --- Phase C: Route Vehicles to Facilities ---
