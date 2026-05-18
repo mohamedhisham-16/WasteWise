@@ -57,6 +57,11 @@ class SimulationEngine:
                 {"bin_id": bin_id, "waste_type": waste_type, "quantity": quantity,
                  "fill_pct": result["fill_percentage"]}
             )
+            # Run check immediately on disposal
+            bin_obj = self.monitor.find_bin(bin_id)
+            if bin_obj:
+                from emergency import emergency_handler
+                emergency_handler.check_emergency_conditions(bin_obj)
         return result
 
     # ------------------------------------------------------------------
@@ -82,8 +87,20 @@ class SimulationEngine:
         }
 
         # --- Phase A: Detect & Rank ---
+        from emergency import emergency_handler
+        
+        # Check and flag emergency situations for all bins
+        for b in self.bins:
+            emergency_handler.check_emergency_conditions(b)
+
         self.log_event("SCAN", f"Scanning for bins above {alert_threshold}% capacity...")
         alert_bins = self.monitor.get_bins_approaching_capacity(alert_threshold)
+        
+        # Guarantee all active emergency bins are included in the dispatch alert list
+        for b in self.bins:
+            if getattr(b, 'is_emergency', False) and b not in alert_bins:
+                alert_bins.append(b)
+                
         summary["bins_detected"] = len(alert_bins)
 
         if not alert_bins:
@@ -95,7 +112,8 @@ class SimulationEngine:
         ranked = self.priority_scorer.rank_bins(alert_bins)
         self.log_event("PRIORITY", "Bins ranked by urgency:")
         for bin_obj, score in ranked:
-            self.log_event("PRIORITY", f"  {bin_obj.bin_id} -> Score: {score:.1f} "
+            prefix = "[EMERGENCY] " if getattr(bin_obj, 'is_emergency', False) else ""
+            self.log_event("PRIORITY", f"  {prefix}{bin_obj.bin_id} -> Score: {score:.1f} "
                            f"(Fill: {bin_obj.get_fill_percentage():.0f}%, "
                            f"Type: {bin_obj.waste_type}, Source: {bin_obj.source_type})")
 
@@ -104,12 +122,17 @@ class SimulationEngine:
         collection_pairs = []  # (vehicle, bin) pairs that succeeded
 
         for bin_obj, score in ranked:
+            if getattr(bin_obj, 'is_emergency', False):
+                self.log_event("EMERGENCY", f"[EMERGENCY DISPATCH] FOR BIN {bin_obj.bin_id}: {bin_obj.emergency_reason}")
+
             vehicle = self.vehicle_allocator.allocate_vehicle(bin_obj, self.graph)
 
             if vehicle is None:
                 msg = f"No suitable vehicle available for Bin {bin_obj.bin_id} ({bin_obj.waste_type})."
                 self.log_event("DISPATCH", f"  FAILED: {msg}")
                 summary["failed_allocations"].append(bin_obj.bin_id)
+                # Increment failed collection attempts to potentially trigger emergency status later
+                bin_obj.failed_collection_attempts = getattr(bin_obj, 'failed_collection_attempts', 0) + 1
                 continue
 
             # Perform the collection
@@ -121,8 +144,15 @@ class SimulationEngine:
             vehicle.current_target = bin_obj.bin_id
             bin_obj.assigned_vehicle = vehicle.vehicle_id
             
+            is_emergency_active = getattr(bin_obj, 'is_emergency', False)
+            
             self.vehicle_allocator.update_allocation(vehicle, bin_obj)
             self.monitor.clear_bin(bin_obj.bin_id)
+            
+            # Resolve emergency logs and attributes if this bin was flagged
+            if is_emergency_active:
+                emergency_handler.resolve_emergency(bin_obj, vehicle.vehicle_id)
+                self.log_event("EMERGENCY", f"[EMERGENCY RESOLVED] Bin {bin_obj.bin_id} by Vehicle {vehicle.vehicle_id}.")
             
             # Record last action for GUI persistence
             vehicle.last_task = "Collected"

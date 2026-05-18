@@ -44,6 +44,11 @@ class PriorityScoring:
             (source_score * self.WEIGHT_SOURCE) + 
             (category_score * self.WEIGHT_CATEGORY)
         )
+        
+        # Apply immense bonus if in emergency state to bypass normal ordering
+        if getattr(bin_obj, 'is_emergency', False):
+            final_score += 1000.0
+            
         return round(final_score, 2)
 
     def rank_bins(self, bins):

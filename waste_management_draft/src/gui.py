@@ -38,6 +38,10 @@ class WasteWiseApp(tk.Tk):
         
         self.apply_theme()
 
+        # Emergency Flashing Loop Initializer
+        self.flash_toggle = False
+        self.schedule_flash()
+
         # Transition to Login
         self.show_login()
 
@@ -80,6 +84,30 @@ class WasteWiseApp(tk.Tk):
             del self.admin_bin_widgets
         if hasattr(self, 'res_bin_widgets'):
             del self.res_bin_widgets
+
+    def schedule_flash(self):
+        self.flash_toggle = not getattr(self, 'flash_toggle', False)
+        
+        # Admin flash logic
+        if hasattr(self, 'admin_bin_widgets'):
+            for b in self.engine.bins:
+                if getattr(b, 'is_emergency', False):
+                    w = self.admin_bin_widgets.get(b.bin_id)
+                    if w:
+                        # Alternate between bright red and light red
+                        color = "red" if self.flash_toggle else "#ff6666"
+                        w["val"].config(foreground=color)
+        
+        # Resident flash logic
+        if hasattr(self, 'res_bin_widgets'):
+            for b_id, w in self.res_bin_widgets.items():
+                b = w.get("obj")
+                if b and getattr(b, 'is_emergency', False):
+                    # Alternate between bright red and light red
+                    color = "red" if self.flash_toggle else "#ff6666"
+                    w["val"].config(foreground=color)
+                    
+        self.after(500, self.schedule_flash)
 
     def show_login(self):
         self.current_user = None
@@ -150,6 +178,12 @@ class WasteWiseApp(tk.Tk):
         self.right_panel = ttk.Frame(self, padding=10)
         self.right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
+        # Emergency Alerts Panel (Top of Left Panel)
+        self.alerts_frame = ttk.LabelFrame(self.left_panel, text="⚠️ LIVE EMERGENCY ALERTS")
+        self.alerts_frame.pack(fill=tk.X, pady=(0, 10))
+        self.alerts_label = ttk.Label(self.alerts_frame, text="✅ System Healthy. No active emergencies.", font=("Segoe UI", 10, "bold"), foreground="green")
+        self.alerts_label.pack(fill=tk.X, padx=10, pady=5)
+
         # Bins Area
         ttk.Label(self.left_panel, text="City Waste Bins", style="Header.TLabel").pack(anchor=tk.W)
         self.bins_frame = ttk.Frame(self.left_panel)
@@ -210,12 +244,28 @@ class WasteWiseApp(tk.Tk):
     def refresh_admin_ui(self):
         fg_col = "#ffffff" if self.is_dark_mode else "#000000"
 
+        # Update Emergency Alerts Panel
+        emergencies = [b for b in self.engine.bins if getattr(b, 'is_emergency', False)]
+        if hasattr(self, 'alerts_label'):
+            if emergencies:
+                alert_text = "\n".join([f"🚨 EMERGENCY: {eb.emergency_reason} at Bin {eb.bin_id}" for eb in emergencies])
+                self.alerts_label.config(text=alert_text, foreground="red")
+            else:
+                self.alerts_label.config(text="✅ System Healthy. No active emergencies.", foreground="green")
+
         for b in self.engine.bins:
             fill = b.get_fill_percentage()
             w = self.admin_bin_widgets[b.bin_id]
             w["pb"]["value"] = fill
-            txt = f"{fill:.1f}% [{b.assigned_vehicle}]" if b.assigned_vehicle else f"{fill:.1f}%"
-            w["val"].config(text=txt, foreground='red' if fill >= 90 else 'orange' if fill >= 70 else fg_col)
+            
+            if getattr(b, 'is_emergency', False):
+                txt = f"🚨 {fill:.1f}% [EMERGENCY - {b.emergency_reason[:15]}]"
+                color = "red"
+            else:
+                txt = f"{fill:.1f}% [{b.assigned_vehicle}]" if b.assigned_vehicle else f"{fill:.1f}%"
+                color = 'red' if fill >= 90 else 'orange' if fill >= 70 else fg_col
+                
+            w["val"].config(text=txt, foreground=color)
 
         for f in self.engine.facilities:
             w = self.admin_fac_widgets[f.facility_id]
@@ -467,11 +517,16 @@ class WasteWiseApp(tk.Tk):
         self.refresh_resident_ui()
 
     def refresh_resident_ui(self):
+        fg_col = "#ffffff" if self.is_dark_mode else "#000000"
         for bid, w in self.res_bin_widgets.items():
             b = w["obj"]
             fill = b.get_fill_percentage()
             w["pb"]["value"] = fill
-            w["val"].config(text=f"{fill:.1f}%")
+            
+            if getattr(b, 'is_emergency', False):
+                w["val"].config(text=f"🚨 {fill:.1f}% EMERGENCY", foreground="red")
+            else:
+                w["val"].config(text=f"{fill:.1f}%", foreground=fg_col)
 
 if __name__ == "__main__":
     app = WasteWiseApp()
