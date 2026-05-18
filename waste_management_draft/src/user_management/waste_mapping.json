@@ -1,8 +1,19 @@
 {
   "zone_mappings": {
-    "residential": ["biodegradable", "recyclable"],
-    "medical": ["biodegradable", "recyclable", "hazardous"],
-    "factory": ["biodegradable", "recyclable", "e-waste"]
+    "residential": [
+      "biodegradable",
+      "recyclable"
+    ],
+    "medical": [
+      "biodegradable",
+      "recyclable",
+      "hazardous"
+    ],
+    "factory": [
+      "biodegradable",
+      "recyclable",
+      "e-waste"
+    ]
   },
   "valid_items": {
     "biodegradable": [
@@ -11,6 +22,7 @@
       "fruit scraps",
       "leaves",
       "organic",
+      "human",
       "leftovers"
     ],
     "recyclable": [

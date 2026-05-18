@@ -20,7 +20,7 @@ class WasteWiseApp(tk.Tk):
         super().__init__()
         self.title("WasteWise - Integrated Urban System")
         self.geometry("1100x800")
-        self.configure(bg="#f4f4f9")
+        self.is_dark_mode = False
         
         # Shared Managers
         self.user_manager = UserManager()
@@ -34,22 +34,52 @@ class WasteWiseApp(tk.Tk):
         # Styles
         self.style = ttk.Style(self)
         self.style.theme_use('clam')
-        self.style.configure("TFrame", background="#f4f4f9")
-        self.style.configure("TLabel", background="#f4f4f9", font=("Segoe UI", 10))
-        self.style.configure("Header.TLabel", font=("Segoe UI", 14, "bold"))
-        self.style.configure("Title.TLabel", font=("Segoe UI", 18, "bold"))
+        
+        self.apply_theme()
 
         # Transition to Login
         self.show_login()
+
+    def toggle_theme(self):
+        self.is_dark_mode = not self.is_dark_mode
+        self.apply_theme()
+
+    def apply_theme(self):
+        bg_color = "#2b2b2b" if self.is_dark_mode else "#f4f4f9"
+        fg_color = "#ffffff" if self.is_dark_mode else "#000000"
+        input_bg = "#3c3f41" if self.is_dark_mode else "#ffffff"
+        input_fg = "#ffffff" if self.is_dark_mode else "#000000"
+
+        self.configure(bg=bg_color)
+        self.style.configure("TFrame", background=bg_color)
+        self.style.configure("TLabel", background=bg_color, foreground=fg_color, font=("Segoe UI", 10))
+        self.style.configure("Header.TLabel", background=bg_color, foreground=fg_color, font=("Segoe UI", 14, "bold"))
+        self.style.configure("Title.TLabel", background=bg_color, foreground=fg_color, font=("Segoe UI", 18, "bold"))
+        
+        # Treeview formatting
+        self.style.configure("Treeview", background=input_bg, foreground=input_fg, fieldbackground=input_bg)
+        self.style.configure("Treeview.Heading", background=bg_color, foreground=fg_color)
+        self.style.configure("TButton", foreground=fg_color) 
+        
+        if hasattr(self, 'log_text') and self.log_text.winfo_exists():
+            self.log_text.configure(bg=input_bg, fg=input_fg, insertbackground=input_fg)
+            
+        if hasattr(self, 'current_user') and self.current_user:
+            self.refresh_admin_ui() if self.current_user.role.lower() == 'admin' else self.refresh_resident_ui()
 
     def clear_window(self):
         for widget in self.winfo_children():
             widget.destroy()
 
     def show_login(self):
+        self.current_user = None
         self.clear_window()
+        self.apply_theme()
         self.title("WasteWise Login")
         self.geometry("400x350")
+        
+        theme_btn = ttk.Button(self, text="Toggle Theme", command=self.toggle_theme)
+        theme_btn.place(relx=0.95, rely=0.05, anchor=tk.NE)
         
         frame = ttk.Frame(self, padding=30)
         frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
@@ -83,6 +113,7 @@ class WasteWiseApp(tk.Tk):
     # -------------------------------------------------------------------------
     def show_admin(self, user):
         self.clear_window()
+        self.apply_theme()
         self.title(f"WasteWise Admin - {user.name}")
         self.geometry("1100x750")
         self.current_user = user
@@ -91,6 +122,7 @@ class WasteWiseApp(tk.Tk):
         head = ttk.Frame(self, padding=5)
         head.pack(fill=tk.X)
         ttk.Button(head, text="Logout", command=self.show_login).pack(side=tk.RIGHT, padx=10)
+        ttk.Button(head, text="Toggle Theme", command=self.toggle_theme).pack(side=tk.RIGHT, padx=10)
         ttk.Button(head, text="Manage Users", command=self.show_user_management).pack(side=tk.RIGHT, padx=10)
         ttk.Label(head, text=f"Admin: {user.name}", font=("Segoe UI", 10, "bold")).pack(side=tk.RIGHT, padx=10)
 
@@ -144,7 +176,9 @@ class WasteWiseApp(tk.Tk):
         self.tree_veh.pack(fill=tk.X, pady=10)
 
         ttk.Label(self.right_panel, text="Live Events Log", style="Header.TLabel").pack(anchor=tk.W)
-        self.log_text = scrolledtext.ScrolledText(self.right_panel, height=15, width=50, font=("Consolas", 9))
+        input_bg = "#3c3f41" if self.is_dark_mode else "#ffffff"
+        input_fg = "#ffffff" if self.is_dark_mode else "#000000"
+        self.log_text = scrolledtext.ScrolledText(self.right_panel, height=15, width=50, font=("Consolas", 9), bg=input_bg, fg=input_fg, insertbackground=input_fg)
         self.log_text.pack(fill=tk.BOTH, expand=True, pady=10)
 
         ctrls = ttk.Frame(self.right_panel)
@@ -156,20 +190,22 @@ class WasteWiseApp(tk.Tk):
         self.refresh_admin_ui()
 
     def refresh_admin_ui(self):
+        fg_col = "#ffffff" if self.is_dark_mode else "#000000"
+
         for b in self.engine.bins:
             fill = b.get_fill_percentage()
             w = self.admin_bin_widgets[b.bin_id]
             w["pb"]["value"] = fill
             txt = f"{fill:.1f}% [{b.assigned_vehicle}]" if b.assigned_vehicle else f"{fill:.1f}%"
-            w["val"].config(text=txt, foreground='red' if fill >= 90 else 'orange' if fill >= 70 else 'black')
+            w["val"].config(text=txt, foreground='red' if fill >= 90 else 'orange' if fill >= 70 else fg_col)
 
         for f in self.engine.facilities:
             w = self.admin_fac_widgets[f.facility_id]
             pct = (f.current_load / f.max_daily_capacity * 100) if f.max_daily_capacity > 0 else 0
             w["pb"]["value"] = pct
-            w["val"].config(text=f"{f.current_load:.1f}/{f.max_daily_capacity:.1f} kg")
+            w["val"].config(text=f"{f.current_load:.1f}/{f.max_daily_capacity:.1f} kg", foreground=fg_col)
             if f.processing_time_left > 0:
-                w["time"].config(text=f"Next: {f.processing_time_left} ticks", foreground='black')
+                w["time"].config(text=f"Next: {f.processing_time_left} ticks", foreground=fg_col)
             else:
                 status = "READY" if (f.current_load / f.max_daily_capacity) >= f.efficiency_threshold else "WAITING"
                 w["time"].config(text=status, foreground='green' if status == "READY" else 'orange')
@@ -214,6 +250,7 @@ class WasteWiseApp(tk.Tk):
         win = tk.Toplevel(self)
         win.title("User Management")
         win.geometry("600x450")
+        win.configure(bg="#2b2b2b" if self.is_dark_mode else "#f4f4f9")
         win.grab_set()
 
         head = ttk.Frame(win, padding=10)
@@ -257,6 +294,7 @@ class WasteWiseApp(tk.Tk):
         dialog = tk.Toplevel(parent_win)
         dialog.title("Add New User")
         dialog.geometry("350x400")
+        dialog.configure(bg="#2b2b2b" if self.is_dark_mode else "#f4f4f9")
         dialog.grab_set()
 
         content = ttk.Frame(dialog, padding=20)
@@ -299,6 +337,7 @@ class WasteWiseApp(tk.Tk):
     # -------------------------------------------------------------------------
     def show_resident(self, user):
         self.clear_window()
+        self.apply_theme()
         self.title(f"WasteWise Resident - {user.name}")
         self.geometry("600x600")
         self.current_user = user
@@ -308,7 +347,8 @@ class WasteWiseApp(tk.Tk):
         head.pack(fill=tk.X)
         ttk.Label(head, text=f"Welcome, {user.name}", style="Header.TLabel").pack(side=tk.LEFT)
         ttk.Button(head, text="Logout", command=self.show_login).pack(side=tk.RIGHT)
-        ttk.Label(head, text=f"Zone: {user.zone.capitalize()}", foreground="#666").pack(side=tk.RIGHT, padx=15)
+        ttk.Button(head, text="Toggle Theme", command=self.toggle_theme).pack(side=tk.RIGHT, padx=5)
+        ttk.Label(head, text=f"Zone: {user.zone.capitalize()}", foreground="#666" if not self.is_dark_mode else "#aaa").pack(side=tk.RIGHT, padx=15)
 
         # Content
         content = ttk.Frame(self, padding=20)
@@ -344,6 +384,7 @@ class WasteWiseApp(tk.Tk):
         dialog = tk.Toplevel(self)
         dialog.title("Dispose Waste")
         dialog.geometry("350x250")
+        dialog.configure(bg="#2b2b2b" if self.is_dark_mode else "#f4f4f9")
         dialog.grab_set()
         
         ttk.Label(dialog, text="Select Bin:").pack(pady=(15, 0))
