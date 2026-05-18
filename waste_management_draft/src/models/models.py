@@ -1,0 +1,183 @@
+# src/models/models.py
+# This module defines the base classes for the Waste Management System.
+# Each class represents a physical entity in the system.
+
+class Bin:
+    """Represents a waste collection point."""
+    def __init__(self, bin_id, capacity, waste_type, source_type, location_id):
+        self.bin_id = bin_id
+        self.capacity = capacity  # Maximum capacity of the bin (kg)
+        self.fill_level = 0.0     # Current fill level (in kg)
+        self.waste_type = waste_type  # e.g., 'Biodegradable', 'Recyclable', 'Hazardous', 'Electronic'
+        self.source_type = source_type # e.g., 'Hospital', 'Apartment', 'Commercial'
+        self.location_id = location_id # The ID of the node in the distance graph
+        self.contamination_level = 0.0 # Percentage of incorrect waste mixed in
+        self.assigned_vehicle = None   # Tracks which vehicle is on the way
+
+        # --- Phase 2 additions ---
+        self._initial_fill = 0.0
+        self._initial_contamination = 0.0
+
+        # --- Emergency waste additions ---
+        self.is_emergency = False
+        self.emergency_reason = None
+        self.emergency_timestamp = None
+        self.failed_collection_attempts = 0
+
+    def get_fill_percentage(self):
+        """Calculates how full the bin is."""
+        if self.capacity == 0:
+            return 0
+        return (self.fill_level / self.capacity) * 100
+
+    def reset(self):
+        """Resets the bin to its initial state (empty and clean)."""
+        self.fill_level = self._initial_fill
+        self.contamination_level = self._initial_contamination
+        self.assigned_vehicle = None
+        self.is_emergency = False
+        self.emergency_reason = None
+        self.emergency_timestamp = None
+        self.failed_collection_attempts = 0
+
+    def __repr__(self):
+        return f"Bin({self.bin_id}, {self.waste_type}, {self.get_fill_percentage():.1f}%)"
+
+
+class Vehicle:
+    """Represents a waste collection truck."""
+    def __init__(self, vehicle_id, vehicle_type, total_capacity, supported_waste_types, location_id):
+        self.vehicle_id = vehicle_id
+        self.vehicle_type = vehicle_type # e.g., 'Compactor', 'Hazardous Truck'
+        self.total_capacity = total_capacity # Total weight it can carry (kg)
+        self.current_load = 0.0 # Current amount of waste being carried
+        self.supported_waste_types = supported_waste_types # List of compatible waste types
+        self.location_id = location_id # Current location in the graph
+        self.is_available = True # Status (available or busy)
+
+        # --- Phase 2 additions ---
+        self._home_location_id = location_id  # Remember depot for reset
+        self.collected_waste_type = None  # The type of waste currently loaded
+        self.current_task = "Idle"       # Current activity (e.g., Collecting, Routing)
+        self.current_target = "N/A"      # The specific bin or facility ID
+        self.last_task = "None"          # Persistent record of last action
+        self.last_target = "N/A"
+
+        # --- Route Optimization additions ---
+        self.current_route = []
+        self.total_distance_travelled = 0.0
+        self.bins_collected_count = 0
+
+    def can_collect(self, bin_obj):
+        """Checks if the vehicle is compatible with the bin's waste type and has capacity."""
+        is_compatible = bin_obj.waste_type in self.supported_waste_types
+        has_space = (self.current_load + bin_obj.fill_level) <= self.total_capacity
+        return is_compatible and has_space and self.is_available
+
+    def is_full(self):
+        """Returns True if the vehicle is at 80% or more capacity."""
+        if self.total_capacity == 0:
+            return True
+        return (self.current_load / self.total_capacity) >= 0.80
+
+    def reset(self):
+        """Resets the vehicle to its initial state at the depot."""
+        self.current_load = 0.0
+        self.is_available = True
+        self.location_id = self._home_location_id
+        self.assigned_facility = None
+        self.collected_waste_type = None
+        self.current_task = "Idle"
+        self.current_target = "N/A"
+        self.last_task = "None"
+        self.last_target = "N/A"
+        self.current_route = []
+        self.total_distance_travelled = 0.0
+        self.bins_collected_count = 0
+
+    def __repr__(self):
+        return f"Vehicle({self.vehicle_id}, {self.vehicle_type}, Load: {self.current_load}/{self.total_capacity})"
+
+
+class Facility:
+    """Represents a waste processing plant."""
+    def __init__(self, facility_id, facility_type, max_daily_capacity, supported_waste_types, current_load, location_id, efficiency_threshold=0.7):
+        self.facility_id = facility_id
+        self.facility_type = facility_type # e.g., 'Recycling Plant', 'Compost Unit'
+        self.max_daily_capacity = max_daily_capacity # Processing limit per day (kg)
+        self.current_load = current_load # Amount of waste received today (kg)
+        self.supported_waste_types = supported_waste_types # Compatibility
+        self.location_id = location_id # Location node ID
+
+        # --- Phase 2 additions ---
+        self._initial_load = current_load
+        self.total_processing_time = 30  # Number of ticks until it is processed/emptied
+        self.processing_time_left = self.total_processing_time
+        self.efficiency_threshold = efficiency_threshold # 70% default
+
+        # --- Environmental Emission & Failover additions ---
+        self.is_active = True
+        self.emissions = 0.0
+        self.emission_limit = 150.0  # Limit of CO2 emissions allowed
+        self.redirected_count = 0
+
+    def tick(self):
+        """Reduces the time until the facility is emptied. Returns status string."""
+        if self.processing_time_left > 0:
+            self.processing_time_left -= 1
+        
+        if self.processing_time_left == 0:
+            fill_pct = (self.current_load / self.max_daily_capacity) if self.max_daily_capacity > 0 else 0
+            if fill_pct >= self.efficiency_threshold:
+                self.empty_facility()
+                return "emptied"
+            else:
+                return "low_load"
+        return "ticked"
+
+    def empty_facility(self):
+        """Manually or automatically empties the facility's processed load."""
+        self.current_load = 0.0
+        self.processing_time_left = self.total_processing_time
+
+    def can_process(self, waste_type, quantity):
+        """Checks if the facility can handle the specific waste type and quantity."""
+        if not self.is_active:
+            return False
+        is_compatible = waste_type in self.supported_waste_types
+        has_capacity = (self.current_load + quantity) <= self.max_daily_capacity
+        return is_compatible and has_capacity
+
+    def receive_waste(self, waste_type, quantity):
+        """Processes incoming waste if compatible and has capacity."""
+        if self.can_process(waste_type, quantity):
+            self.current_load += quantity
+            
+            # Emissions tracking
+            from utils import constants, logger
+            rate = constants.EMISSION_RATES.get(waste_type, 0.05)
+            self.emissions += quantity * rate
+            
+            # Check emissions threshold
+            if self.emissions >= self.emission_limit:
+                self.is_active = False
+                logger.log_facility_event(self.facility_id, "EMISSION_LIMIT_EXCEEDED", 
+                                            f"Facility exceeded emission limit of {self.emission_limit} kg (Current: {self.emissions:.2f} kg)")
+                print(f"[EMERGENCY ALERT] Facility {self.facility_id} emissions exceeded limit! INACTIVATING facility.")
+            return True
+        return False
+
+    def get_remaining_capacity(self):
+        """Returns how much more waste the facility can accept today."""
+        return self.max_daily_capacity - self.current_load
+
+    def reset(self):
+        """Resets the facility to its initial state."""
+        self.current_load = self._initial_load
+        self.processing_time_left = self.total_processing_time
+        self.is_active = True
+        self.emissions = 0.0
+        self.redirected_count = 0
+
+    def __repr__(self):
+        return f"Facility({self.facility_id}, {self.facility_type}, Capacity: {self.current_load}/{self.max_daily_capacity}, Time Left: {self.processing_time_left})"

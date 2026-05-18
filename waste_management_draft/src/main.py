@@ -1,11 +1,23 @@
 # src/main.py
+# CLI launcher for the WasteWise Simulation run
+
 import random
 import time
-from data_loader import load_all
-from engine import SimulationEngine
+import sys
+import os
+
+# Add src to python path to resolve submodules
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+
+from simulation.data_loader import load_all
+from simulation.engine import SimulationEngine
+from utils import logger
 
 def simulate_day():
     print("=== Central Command: WasteWise Simulation ===\n")
+    
+    # Reset all persistent logs on terminal execution
+    logger.reset_all_logs()
     
     # Step 1: Initialize System with dummy data
     print("[SYSTEM] Loading city map, bins, facilities, and fleet...")

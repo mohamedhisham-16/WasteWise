@@ -1,12 +1,17 @@
+# src/auth/auth.py
+# Handles user authentication and logging login history using central utilities
+
 import os
-import csv
 from datetime import datetime
-from user_management import csv_handler
-from user_management.user import User
+from auth.user import User
+from utils import csv_utils
+
+USERS_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "users.csv"))
+HISTORY_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "login_history.csv"))
 
 def load_users():
     """Reads all users from users.csv and returns a list of User objects."""
-    data = csv_handler.load_users_from_csv()
+    data = csv_utils.read_csv(USERS_FILE, as_dict=True)
     return [User.from_dict(row) for row in data]
 
 def login(user_id, password):
@@ -37,15 +42,10 @@ def record_login_attempt(user_id, success):
     Saves login history into login_history.csv
     Columns: timestamp,user_id,status
     """
-    base_dir = os.path.dirname(os.path.abspath(csv_handler.__file__))
-    log_file = os.path.join(base_dir, "login_history.csv")
-    
-    file_exists = os.path.exists(log_file)
-    with open(log_file, mode='a', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        if not file_exists:
-            writer.writerow(["timestamp", "user_id", "status"])
-            
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-        status = "SUCCESS" if success else "FAILED"
-        writer.writerow([timestamp, user_id, status])
+    headers = ["timestamp", "user_id", "status"]
+    row = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "user_id": user_id,
+        "status": "SUCCESS" if success else "FAILED"
+    }
+    csv_utils.append_csv(HISTORY_FILE, row, headers=headers, as_dict=True)

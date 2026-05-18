@@ -1,14 +1,9 @@
 # src/emergency/emergency_handler.py
 # Module: Emergency Waste Handling Subsystem
-# Purpose: Automatically detects critical waste threats, creates emergency incidents, 
-#          handles persistent CSV event logs, and resolves emergency cases upon successful pickup.
+# Detects critical waste threats, creates emergency incidents, and logs them using central logger.
 
-import os
-import csv
 from datetime import datetime
-
-# Persistent CSV database path for emergency logs
-LOGS_FILE = r"c:\NarenClg\Sem 2\Python\Project\WasteWise\waste_management_draft\src\data\emergency_logs.csv"
+from utils import logger
 
 def check_emergency_conditions(bin_obj):
     """
@@ -50,26 +45,13 @@ def trigger_emergency(bin_obj, reason):
     bin_obj.emergency_reason = reason
     bin_obj.emergency_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     
-    log_emergency_event(bin_obj.bin_id, reason, "ACTIVE")
+    logger.log_emergency(bin_obj.bin_id, reason, "ACTIVE")
     print(f"[EMERGENCY TRIGGERED] Bin {bin_obj.bin_id}: {reason}")
-
-def log_emergency_event(bin_id, reason, status, vehicle_assigned="None"):
-    """Saves structured emergency logs in a persistent database CSV."""
-    os.makedirs(os.path.dirname(LOGS_FILE), exist_ok=True)
-    file_exists = os.path.exists(LOGS_FILE)
-    
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    
-    with open(LOGS_FILE, mode='a', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        if not file_exists:
-            writer.writerow(["timestamp", "bin_id", "reason", "vehicle_assigned", "status"])
-        writer.writerow([timestamp, bin_id, reason, vehicle_assigned, status])
 
 def resolve_emergency(bin_obj, vehicle_id):
     """Closes an emergency, updates CSV logs, and resets bin parameters."""
     if getattr(bin_obj, 'is_emergency', False):
-        log_emergency_event(bin_obj.bin_id, "Resolved", "CLOSED", vehicle_assigned=vehicle_id)
+        logger.log_emergency(bin_obj.bin_id, "Resolved", "CLOSED", vehicle_assigned=vehicle_id)
         
         bin_obj.is_emergency = False
         bin_obj.emergency_reason = None
