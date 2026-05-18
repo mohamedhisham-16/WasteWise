@@ -12,13 +12,16 @@ class UserManager:
         data = csv_handler.load_users_from_csv()
         self.users = [User.from_dict(row) for row in data]
 
-    def add_user(self, user_id, name, role, zone):
+    def add_user(self, user_id, name, role, zone, password=None, violation_score=0):
         """Adds a new user if the user_id is unique."""
         if self.search_user(user_id) is not None:
             print(f"Error: User with ID '{user_id}' already exists.")
             return False
             
-        new_user = User(user_id, name, role, zone)
+        if password is None:
+            password = user_id + "123"
+
+        new_user = User(user_id, name, password, role, zone, violation_score)
         self.users.append(new_user)
         
         # Append only the new user directly to the CSV to avoid rewriting everything
