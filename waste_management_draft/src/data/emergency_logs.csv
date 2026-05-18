@@ -1,0 +1,17 @@
+timestamp,bin_id,reason,vehicle_assigned,status
+2026-05-18 18:08,B_HAZ_90,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:08,B_HAZ_HOSP_80,Critical Hospital Hazardous Waste Load,None,ACTIVE
+2026-05-18 18:08,B_CONTAM,Critical Contamination Detected (25.0%),None,ACTIVE
+2026-05-18 18:08,B_E_OVERFLOW,Electronic Waste Overflow,None,ACTIVE
+2026-05-18 18:08,B_FAILURES,Multiple Collection Failures (3 attempts),None,ACTIVE
+2026-05-18 18:08,B_EMER,Resolved,V_TEST,CLOSED
+2026-05-18 18:09,B009,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:10,B009,Resolved,V003,CLOSED
+2026-05-18 18:10,B009,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:10,B009,Resolved,V003,CLOSED
+2026-05-18 18:10,B004,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:10,B004,Resolved,V003,CLOSED
+2026-05-18 18:10,B004,Critical Hospital Hazardous Waste Load,None,ACTIVE
+2026-05-18 18:10,B010,Multiple Collection Failures (3 attempts),None,ACTIVE
+2026-05-18 18:10,B004,Resolved,V003,CLOSED
+2026-05-18 18:10,B010,Resolved,V004,CLOSED

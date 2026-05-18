@@ -18,6 +18,12 @@ class Bin:
         self._initial_fill = 0.0
         self._initial_contamination = 0.0
 
+        # --- Emergency waste additions ---
+        self.is_emergency = False
+        self.emergency_reason = None
+        self.emergency_timestamp = None
+        self.failed_collection_attempts = 0
+
     def get_fill_percentage(self):
         """Calculates how full the bin is."""
         if self.capacity == 0:
@@ -29,6 +35,10 @@ class Bin:
         self.fill_level = self._initial_fill
         self.contamination_level = self._initial_contamination
         self.assigned_vehicle = None
+        self.is_emergency = False
+        self.emergency_reason = None
+        self.emergency_timestamp = None
+        self.failed_collection_attempts = 0
 
     def __repr__(self):
         return f"Bin({self.bin_id}, {self.waste_type}, {self.get_fill_percentage():.1f}%)"
