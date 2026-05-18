@@ -63,6 +63,11 @@ class Vehicle:
         self.last_task = "None"          # Persistent record of last action
         self.last_target = "N/A"
 
+        # --- Route Optimization additions ---
+        self.current_route = []
+        self.total_distance_travelled = 0.0
+        self.bins_collected_count = 0
+
     def can_collect(self, bin_obj):
         """Checks if the vehicle is compatible with the bin's waste type and has capacity."""
         is_compatible = bin_obj.waste_type in self.supported_waste_types
@@ -86,6 +91,9 @@ class Vehicle:
         self.current_target = "N/A"
         self.last_task = "None"
         self.last_target = "N/A"
+        self.current_route = []
+        self.total_distance_travelled = 0.0
+        self.bins_collected_count = 0
 
     def __repr__(self):
         return f"Vehicle({self.vehicle_id}, {self.vehicle_type}, Load: {self.current_load}/{self.total_capacity})"

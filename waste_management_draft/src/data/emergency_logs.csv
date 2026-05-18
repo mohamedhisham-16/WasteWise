@@ -15,3 +15,31 @@ timestamp,bin_id,reason,vehicle_assigned,status
 2026-05-18 18:10,B010,Multiple Collection Failures (3 attempts),None,ACTIVE
 2026-05-18 18:10,B004,Resolved,V003,CLOSED
 2026-05-18 18:10,B010,Resolved,V004,CLOSED
+2026-05-18 18:14,B003,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:14,B003,Resolved,V003,CLOSED
+2026-05-18 18:14,B009,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:14,B004,Critical Hospital Hazardous Waste Load,None,ACTIVE
+2026-05-18 18:14,B003,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:14,B004,Resolved,V003,CLOSED
+2026-05-18 18:14,B003,Resolved,V003,CLOSED
+2026-05-18 18:14,B009,Resolved,V003,CLOSED
+2026-05-18 18:14,B009,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:14,B004,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:14,B003,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:14,B004,Resolved,V003,CLOSED
+2026-05-18 18:14,B003,Resolved,V003,CLOSED
+2026-05-18 18:14,B009,Resolved,V003,CLOSED
+2026-05-18 18:16,B009,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:16,B004,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:16,B004,Resolved,V003,CLOSED
+2026-05-18 18:16,B009,Resolved,V003,CLOSED
+2026-05-18 18:18,B009,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:18,B003,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:18,B004,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:18,B004,Resolved,V003,CLOSED
+2026-05-18 18:18,B003,Resolved,V003,CLOSED
+2026-05-18 18:18,B009,Resolved,V003,CLOSED
+2026-05-18 18:26,B009,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:26,B004,Hazardous Waste Overflow Threat,None,ACTIVE
+2026-05-18 18:27,B004,Resolved,V003,CLOSED
+2026-05-18 18:27,B009,Resolved,V003,CLOSED

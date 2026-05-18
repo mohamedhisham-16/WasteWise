@@ -10,23 +10,23 @@ from distance_graph import DistanceGraph
 def create_sample_bins():
     """Creates a diverse set of waste bins across the city."""
     bins = [
-        # Residential area
-        Bin("B001", 100.0, "Biodegradable", "Apartment", "Node_R1"),
-        Bin("B002", 80.0,  "Recyclable",    "Apartment", "Node_R1"),
-        Bin("B003", 50.0,  "Hazardous",     "Apartment", "Node_R2"),
+        # Greenwood Suburb (Residential)
+        Bin("B001", 100.0, "Biodegradable", "Apartment", "Greenwood Suburb"),
+        Bin("B002", 80.0,  "Recyclable",    "Apartment", "Greenwood Suburb"),
+        Bin("B003", 50.0,  "Hazardous",     "Apartment", "Pine Heights"),
 
-        # Hospital zone
-        Bin("B004", 60.0,  "Hazardous",     "Hospital",  "Node_H1"),
-        Bin("B005", 80.0,  "Biodegradable", "Hospital",  "Node_H1"),
+        # Metro Hospital Zone
+        Bin("B004", 60.0,  "Hazardous",     "Hospital",  "Metro Hospital"),
+        Bin("B005", 80.0,  "Biodegradable", "Hospital",  "Metro Hospital"),
 
-        # Commercial district
-        Bin("B006", 120.0, "Recyclable",    "Commercial", "Node_C1"),
-        Bin("B007", 100.0, "Electronic",    "Commercial", "Node_C1"),
-        Bin("B008", 100.0, "Biodegradable", "Market",     "Node_C2"),
+        # Downtown Commercial
+        Bin("B006", 120.0, "Recyclable",    "Commercial", "Downtown Market"),
+        Bin("B007", 100.0, "Electronic",    "Commercial", "Downtown Market"),
+        Bin("B008", 100.0, "Biodegradable", "Market",     "Central Plaza"),
 
-        # Industrial edge
-        Bin("B009", 40.0,  "Hazardous",     "Commercial", "Node_I1"),
-        Bin("B010", 60.0,  "Electronic",    "Commercial", "Node_I1"),
+        # Industrial Zone
+        Bin("B009", 40.0,  "Hazardous",     "Commercial", "Industrial Zone"),
+        Bin("B010", 60.0,  "Electronic",    "Commercial", "Industrial Zone"),
     ]
     return bins
 
@@ -34,11 +34,11 @@ def create_sample_bins():
 def create_sample_vehicles():
     """Creates a fleet of waste collection vehicles."""
     vehicles = [
-        Vehicle("V001", "Compactor",       500.0, ["Biodegradable", "Recyclable"], "Depot_1"),
-        Vehicle("V002", "Compactor",       400.0, ["Biodegradable", "Recyclable"], "Depot_1"),
-        Vehicle("V003", "Hazmat Truck",    200.0, ["Hazardous"],                   "Depot_2"),
-        Vehicle("V004", "E-Waste Carrier", 150.0, ["Electronic"],                  "Depot_2"),
-        Vehicle("V005", "Mini Truck",      250.0, ["Biodegradable", "Recyclable"], "Depot_1"),
+        Vehicle("V001", "Compactor",       500.0, ["Biodegradable", "Recyclable"], "North Depot"),
+        Vehicle("V002", "Compactor",       400.0, ["Biodegradable", "Recyclable"], "North Depot"),
+        Vehicle("V003", "Hazmat Truck",    200.0, ["Hazardous"],                   "South Depot"),
+        Vehicle("V004", "E-Waste Carrier", 150.0, ["Electronic"],                  "South Depot"),
+        Vehicle("V005", "Mini Truck",      250.0, ["Biodegradable", "Recyclable"], "North Depot"),
     ]
     return vehicles
 
@@ -46,10 +46,10 @@ def create_sample_vehicles():
 def create_sample_facilities():
     """Creates processing plants for each waste category."""
     facilities = [
-        Facility("F001", "Compost Unit",      1000.0, ["Biodegradable"],  0.0, "Node_F1"),
-        Facility("F002", "Recycling Plant",   1500.0, ["Recyclable"],     0.0, "Node_F2"),
-        Facility("F003", "Hazmat Processor",  500.0,  ["Hazardous"],      0.0, "Node_F3"),
-        Facility("F004", "E-Waste Recycler",  300.0,  ["Electronic"],     0.0, "Node_F4"),
+        Facility("F001", "Compost Unit",      1000.0, ["Biodegradable"],  0.0, "Compost Center"),
+        Facility("F002", "Recycling Plant",   1500.0, ["Recyclable"],     0.0, "Recycling Hub"),
+        Facility("F003", "Hazmat Processor",  500.0,  ["Hazardous"],      0.0, "Hazmat Disposal"),
+        Facility("F004", "E-Waste Recycler",  300.0,  ["Electronic"],     0.0, "E-Waste Hub"),
     ]
     return facilities
 
@@ -60,41 +60,41 @@ def create_city_graph():
     
     Layout (approximate):
     
-        Depot_1 ---- Node_R1 ---- Node_R2 ---- Node_H1
-           |             |             |            |
-        Node_F1 --- Node_C1 ---- Node_C2 ---- Node_F3
-           |             |             |            |
-        Depot_2 ---- Node_I1 ---- Node_F2 ---- Node_F4
+        North Depot ---- Greenwood Suburb ---- Pine Heights ---- Metro Hospital
+             |                    |                   |                 |
+        Compost Center --- Downtown Market ---- Central Plaza -- Hazmat Disposal
+             |                    |                   |                 |
+        South Depot ----- Industrial Zone ---- Recycling Hub ---- E-Waste Hub
     """
     graph = DistanceGraph()
 
-    # Row 1: Depot_1 — Residential — Hospital
-    graph.add_edge("Depot_1",  "Node_R1", 3)
-    graph.add_edge("Node_R1",  "Node_R2", 4)
-    graph.add_edge("Node_R2",  "Node_H1", 2)
+    # Row 1: North Depot — Greenwood Suburb — Pine Heights — Metro Hospital
+    graph.add_edge("North Depot",  "Greenwood Suburb", 3)
+    graph.add_edge("Greenwood Suburb",  "Pine Heights", 4)
+    graph.add_edge("Pine Heights",  "Metro Hospital", 2)
 
-    # Row 2: Facility 1 — Commercial — Facility 3
-    graph.add_edge("Node_F1",  "Node_C1", 5)
-    graph.add_edge("Node_C1",  "Node_C2", 3)
-    graph.add_edge("Node_C2",  "Node_F3", 4)
+    # Row 2: Compost Center — Downtown Market — Central Plaza — Hazmat Disposal
+    graph.add_edge("Compost Center",  "Downtown Market", 5)
+    graph.add_edge("Downtown Market",  "Central Plaza", 3)
+    graph.add_edge("Central Plaza",  "Hazmat Disposal", 4)
 
-    # Row 3: Depot_2 — Industrial — Facility 2 — Facility 4
-    graph.add_edge("Depot_2",  "Node_I1", 3)
-    graph.add_edge("Node_I1",  "Node_F2", 6)
-    graph.add_edge("Node_F2",  "Node_F4", 2)
+    # Row 3: South Depot — Industrial Zone — Recycling Hub — E-Waste Hub
+    graph.add_edge("South Depot",  "Industrial Zone", 3)
+    graph.add_edge("Industrial Zone",  "Recycling Hub", 6)
+    graph.add_edge("Recycling Hub",  "E-Waste Hub", 2)
 
     # Vertical connections (Column links)
-    graph.add_edge("Depot_1",  "Node_F1", 4)
-    graph.add_edge("Node_F1",  "Depot_2", 5)
+    graph.add_edge("North Depot",  "Compost Center", 4)
+    graph.add_edge("Compost Center",  "South Depot", 5)
 
-    graph.add_edge("Node_R1",  "Node_C1", 3)
-    graph.add_edge("Node_C1",  "Node_I1", 4)
+    graph.add_edge("Greenwood Suburb",  "Downtown Market", 3)
+    graph.add_edge("Downtown Market",  "Industrial Zone", 4)
 
-    graph.add_edge("Node_R2",  "Node_C2", 2)
-    graph.add_edge("Node_C2",  "Node_F2", 5)
+    graph.add_edge("Pine Heights",  "Central Plaza", 2)
+    graph.add_edge("Central Plaza",  "Recycling Hub", 5)
 
-    graph.add_edge("Node_H1",  "Node_F3", 3)
-    graph.add_edge("Node_F3",  "Node_F4", 4)
+    graph.add_edge("Metro Hospital",  "Hazmat Disposal", 3)
+    graph.add_edge("Hazmat Disposal",  "E-Waste Hub", 4)
 
     return graph
 
