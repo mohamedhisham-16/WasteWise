@@ -71,6 +71,10 @@ class VehicleAllocator:
                 "total_capacity": v.total_capacity,
                 "is_available": v.is_available,
                 "location_id": v.location_id,
-                "waste_types": v.supported_waste_types
+                "waste_types": v.supported_waste_types,
+                "current_task": v.current_task,
+                "current_target": v.current_target,
+                "last_task": v.last_task,
+                "last_target": v.last_target
             })
         return statuses

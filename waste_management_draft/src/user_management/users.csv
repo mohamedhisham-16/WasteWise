@@ -1,4 +1,7 @@
 user_id,name,role,zone
 A001,Admin Alice,admin,factory
-R001,Resident Bob,resident,residential
 M001,Medical Mary,resident,medical
+R002,Kvaratskhelia,Resident,residential
+R003,Zlatan,Resident,residential
+R001,Ibrahimovic,Resident,residential
+M002,Medical Messi,resident,medical

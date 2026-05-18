@@ -68,6 +68,10 @@ class FacilityAllocator:
             vehicle.collected_waste_type = None
             vehicle.assigned_facility = None
             vehicle.location_id = facility.location_id
+            vehicle.last_task = "Unloaded"
+            vehicle.last_target = facility.facility_id
+            vehicle.current_task = "Idle"
+            vehicle.current_target = "N/A"
             # Vehicle stays available for next assignment
             vehicle.is_available = True
             return True

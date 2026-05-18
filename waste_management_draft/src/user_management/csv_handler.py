@@ -1,7 +1,9 @@
 import csv
 import os
 
-CSV_FILE = "users.csv"
+# Use absolute path relative to this file to ensure it's found when imported from other directories
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_FILE = os.path.join(BASE_DIR, "users.csv")
 HEADERS = ["user_id", "name", "role", "zone"]
 
 def initialize_csv():

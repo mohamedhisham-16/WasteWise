@@ -2,27 +2,19 @@ import json
 import os
 import datetime
 import uuid
-import logger
+from user_management import logger
 
-def calculate_contamination(quantity, items_list, valid_items):
+def calculate_automated_contamination(quantity, severity_factor=0.05):
     """
-    Calculates contamination by checking if the items entered are valid 
-    according to the predefined valid_items list from JSON.
+    Simulates automated contamination detection.
+    Returns a random contamination weight based on a severity factor.
     """
-    if not items_list:
-        return 0.0
-
-    valid_map = {item.lower(): True for item in valid_items}
-            
-    invalid_count = 0
-    for item in items_list:
-        item_lower = item.strip().lower()
-        if not valid_map.get(item_lower, False):
-            invalid_count += 1
-            
-    # Contamination grows proportionally with the quantity and how many invalid items exist 
-    contamination = quantity * invalid_count
-    return float(contamination)
+    import random
+    chance = random.random()
+    if chance < 0.3: # 30% chance of contamination
+        factor = random.uniform(0.01, severity_factor)
+        return float(quantity * factor)
+    return 0.0
 
 def calculate_penalty(contamination, category):
     """
@@ -86,8 +78,8 @@ class InputProcessor:
             
         valid_items = valid_items_dict[category]
                 
-        # --- 3. Compute Metrics ---
-        contamination = calculate_contamination(quantity, items_list, valid_items)
+        # --- 3. Compute Metrics (Automated) ---
+        contamination = calculate_automated_contamination(quantity)
         penalty = calculate_penalty(contamination, category)
         
         # --- 4. Package and Log Result ---

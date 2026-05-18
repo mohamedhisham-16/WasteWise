@@ -12,6 +12,7 @@ class Bin:
         self.source_type = source_type # e.g., 'Hospital', 'Apartment', 'Commercial'
         self.location_id = location_id # The ID of the node in the distance graph
         self.contamination_level = 0.0 # Percentage of incorrect waste mixed in
+        self.assigned_vehicle = None   # Tracks which vehicle is on the way
 
         # --- Phase 2 additions ---
         self._initial_fill = 0.0
@@ -27,6 +28,7 @@ class Bin:
         """Resets the bin to its initial state (empty and clean)."""
         self.fill_level = self._initial_fill
         self.contamination_level = self._initial_contamination
+        self.assigned_vehicle = None
 
     def __repr__(self):
         return f"Bin({self.bin_id}, {self.waste_type}, {self.get_fill_percentage():.1f}%)"
@@ -45,8 +47,11 @@ class Vehicle:
 
         # --- Phase 2 additions ---
         self._home_location_id = location_id  # Remember depot for reset
-        self.assigned_facility = None  # Facility ID this vehicle is heading to
         self.collected_waste_type = None  # The type of waste currently loaded
+        self.current_task = "Idle"       # Current activity (e.g., Collecting, Routing)
+        self.current_target = "N/A"      # The specific bin or facility ID
+        self.last_task = "None"          # Persistent record of last action
+        self.last_target = "N/A"
 
     def can_collect(self, bin_obj):
         """Checks if the vehicle is compatible with the bin's waste type and has capacity."""
@@ -67,6 +72,10 @@ class Vehicle:
         self.location_id = self._home_location_id
         self.assigned_facility = None
         self.collected_waste_type = None
+        self.current_task = "Idle"
+        self.current_target = "N/A"
+        self.last_task = "None"
+        self.last_target = "N/A"
 
     def __repr__(self):
         return f"Vehicle({self.vehicle_id}, {self.vehicle_type}, Load: {self.current_load}/{self.total_capacity})"
@@ -74,7 +83,7 @@ class Vehicle:
 
 class Facility:
     """Represents a waste processing plant."""
-    def __init__(self, facility_id, facility_type, max_daily_capacity, supported_waste_types, current_load, location_id):
+    def __init__(self, facility_id, facility_type, max_daily_capacity, supported_waste_types, current_load, location_id, efficiency_threshold=0.7):
         self.facility_id = facility_id
         self.facility_type = facility_type # e.g., 'Recycling Plant', 'Compost Unit'
         self.max_daily_capacity = max_daily_capacity # Processing limit per day (kg)
@@ -84,6 +93,28 @@ class Facility:
 
         # --- Phase 2 additions ---
         self._initial_load = current_load
+        self.total_processing_time = 30  # Number of ticks until it is processed/emptied
+        self.processing_time_left = self.total_processing_time
+        self.efficiency_threshold = efficiency_threshold # 70% default
+
+    def tick(self):
+        """Reduces the time until the facility is emptied. Returns status string."""
+        if self.processing_time_left > 0:
+            self.processing_time_left -= 1
+        
+        if self.processing_time_left == 0:
+            fill_pct = (self.current_load / self.max_daily_capacity) if self.max_daily_capacity > 0 else 0
+            if fill_pct >= self.efficiency_threshold:
+                self.empty_facility()
+                return "emptied"
+            else:
+                return "low_load"
+        return "ticked"
+
+    def empty_facility(self):
+        """Manually or automatically empties the facility's processed load."""
+        self.current_load = 0.0
+        self.processing_time_left = self.total_processing_time
 
     def can_process(self, waste_type, quantity):
         """Checks if the facility can handle the specific waste type and quantity."""
@@ -105,6 +136,7 @@ class Facility:
     def reset(self):
         """Resets the facility to its initial state."""
         self.current_load = self._initial_load
+        self.processing_time_left = self.total_processing_time
 
     def __repr__(self):
-        return f"Facility({self.facility_id}, {self.facility_type}, Capacity: {self.current_load}/{self.max_daily_capacity})"
+        return f"Facility({self.facility_id}, {self.facility_type}, Capacity: {self.current_load}/{self.max_daily_capacity}, Time Left: {self.processing_time_left})"

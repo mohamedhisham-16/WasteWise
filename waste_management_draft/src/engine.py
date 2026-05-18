@@ -113,39 +113,50 @@ class SimulationEngine:
                 continue
 
             # Perform the collection
+            self.log_event("COLLECT", f"  Vehicle {vehicle.vehicle_id} -> Bin {bin_obj.bin_id} "
+                           f"({bin_obj.waste_type}, {bin_obj.fill_level:.1f}kg)")
+            
+            # Track assignment for GUI visibility
+            vehicle.current_task = "Collecting"
+            vehicle.current_target = bin_obj.bin_id
+            bin_obj.assigned_vehicle = vehicle.vehicle_id
+            
             self.vehicle_allocator.update_allocation(vehicle, bin_obj)
             self.monitor.clear_bin(bin_obj.bin_id)
+            
+            # Record last action for GUI persistence
+            vehicle.last_task = "Collected"
+            vehicle.last_target = bin_obj.bin_id
+            
+            # Reset bin assignment after clearing
+            bin_obj.assigned_vehicle = None
+            
             collection_pairs.append((vehicle, bin_obj))
             summary["bins_collected"] += 1
             summary["vehicles_dispatched"] += 1
 
-            self.log_event("COLLECT", f"  Vehicle {vehicle.vehicle_id} -> Bin {bin_obj.bin_id} "
-                           f"({bin_obj.waste_type}, {bin_obj.fill_level:.1f}kg)")
-
         # --- Phase C: Route Vehicles to Facilities ---
         self.log_event("ROUTE", "Routing loaded vehicles to processing facilities...")
 
-        # Collect unique vehicles that have waste loaded
-        loaded_vehicles = set()
-        for vehicle, _ in collection_pairs:
+        # Check EVERY vehicle in the fleet to see if it needs unloading
+        for vehicle in self.vehicles:
             if vehicle.current_load > 0:
-                loaded_vehicles.add(vehicle)
+                facility = self.facility_allocator.allocate_facility(vehicle, self.graph)
 
-        for vehicle in loaded_vehicles:
-            facility = self.facility_allocator.allocate_facility(vehicle, self.graph)
+                if facility is None:
+                    continue
 
-            if facility is None:
-                self.log_event("ROUTE", f"  FAILED: No facility available for Vehicle "
-                               f"{vehicle.vehicle_id} ({vehicle.collected_waste_type}).")
-                continue
+                # Set routing task for visibility
+                vehicle.current_task = "Routing"
+                vehicle.current_target = facility.facility_id
 
-            # Unload at facility
-            success = self.facility_allocator.process_vehicle_unload(vehicle, facility)
-            if success:
-                summary["vehicles_unloaded"] += 1
-                self.log_event("UNLOAD", f"  Vehicle {vehicle.vehicle_id} -> "
-                               f"Facility {facility.facility_id} "
-                               f"({facility.facility_type})")
+                # Unload at facility
+                success = self.facility_allocator.process_vehicle_unload(vehicle, facility)
+                if success:
+                    summary["vehicles_unloaded"] += 1
+                    self.log_event("UNLOAD", f"  Vehicle {vehicle.vehicle_id} -> "
+                                   f"Facility {facility.facility_id} "
+                                   f"({facility.facility_type})")
 
         # --- Summary ---
         self.log_event("COMPLETE", f"Optimization cycle complete. "
@@ -154,9 +165,16 @@ class SimulationEngine:
                        f"Failed: {len(summary['failed_allocations'])}")
         return summary
 
-    # ------------------------------------------------------------------
-    #  Utility Methods
-    # ------------------------------------------------------------------
+    def advance_facilities(self):
+        """Advances the processing timer for all facilities."""
+        for f in self.facilities:
+            status = f.tick()
+            if status == "emptied":
+                self.log_event("FACILITY", f"Facility {f.facility_id} processing complete. Load cleared.")
+            elif status == "low_load":
+                self.log_event("FACILITY", f"Facility {f.facility_id} waiting for more waste (below threshold).",
+                               {"load_pct": (f.current_load / f.max_daily_capacity * 100)})
+
     def get_system_status(self):
         """Returns a full snapshot of the system for GUI display."""
         return {
