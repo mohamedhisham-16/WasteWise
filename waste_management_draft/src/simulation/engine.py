@@ -57,8 +57,9 @@ class SimulationEngine:
             )
             
             # Log general waste disposal event with contamination & penalties to persistent CSV
-            contamination_qty = result.get("contamination_detected", 0.0) * quantity
-            penalty = calculate_penalty(contamination_qty, waste_type)
+            contamination_pct = result.get("total_contamination", 0.0)
+            contamination_qty = contamination_pct * quantity
+            penalty = calculate_penalty(contamination_pct)
             
             logger.log_event({
                 "input_id": f"EVT-{uuid.uuid4().hex[:8].upper()}",
@@ -74,6 +75,9 @@ class SimulationEngine:
             if bin_obj:
                 from emergency import emergency_handler
                 emergency_handler.check_emergency_conditions(bin_obj)
+            
+            result["penalty"] = penalty
+            
         return result
 
     def run_optimization(self, alert_threshold=80.0):
@@ -155,6 +159,9 @@ class SimulationEngine:
             route_nodes, bins_to_collect, route_distance = generate_collection_route(
                 vehicle, bin_obj, eligible_pool, self.graph, self.priority_scorer, self.facility_allocator
             )
+            
+            if getattr(bin_obj, 'contamination_level', 0.0) > 0.40:
+                self.log_event("SEGREGATION", f"Contamination > 40%. Vehicle {vehicle.vehicle_id} flagged for Segregation Routing.")
 
             # Collect each bin in the route
             bin_ids_str = ", ".join([b.bin_id for b in bins_to_collect])

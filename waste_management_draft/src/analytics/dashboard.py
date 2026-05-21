@@ -322,7 +322,7 @@ class AnalyticsDashboard:
         list_frame = tk.LabelFrame(frame, text="Municipal Resident Accounts Directory", bg=card_bg, fg=fg, bd=1, relief=tk.SOLID, padx=15, pady=10)
         list_frame.pack(fill=tk.BOTH, expand=True, pady=10)
         
-        cols = ("Name", "ID", "Role", "Zone", "Violation Score / Penalty")
+        cols = ("Name", "ID", "Role", "Zone", "Penalty Balance (₹)")
         tree = ttk.Treeview(list_frame, columns=cols, show='headings', height=10)
         for c in cols:
             tree.heading(c, text=c)
@@ -339,14 +339,14 @@ class AnalyticsDashboard:
                     zone_str = str(u.zone).capitalize() if u.zone else "N/A"
                     name_str = str(u.name) if u.name else "N/A"
                     uid_str = str(u.user_id) if u.user_id else "N/A"
-                    violation_score = u.violation_score
+                    val = f"₹ {float(u.violation_score):.2f}"
                     
                     tree.insert('', 'end', values=(
                         name_str, 
                         uid_str, 
                         role_str, 
                         zone_str, 
-                        violation_score
+                        val
                     ))
             except Exception as e:
                 print(f"[RECONCILE ERROR] Failed to load or populate resident list: {e}")
@@ -412,20 +412,44 @@ class AnalyticsDashboard:
         """Plots waste quantities by category (Pie chart). Fits screen perfectly without Matplotlib equal axis bug."""
         disposals = csv_utils.read_csv(logger.DISPOSAL_LOG, as_dict=True)
         
+        import json
+        import os
+        mapping_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'waste_mapping.json')
+        try:
+            with open(mapping_file, 'r', encoding='utf-8') as f:
+                mappings = json.load(f)
+                valid_items = mappings.get('valid_items', {})
+        except Exception:
+            valid_items = {}
+            
         data = {"Biodegradable": 0.0, "Recyclable": 0.0, "Hazardous": 0.0, "Electronic": 0.0}
         for d in disposals:
-            cat = d.get("category", "").capitalize()
-            if "e-waste" in cat.lower() or "electronic" in cat.lower():
-                cat = "Electronic"
-            if cat in data:
+            raw_cat = d.get("category", "").lower().strip()
+            
+            # Resolve category using waste mapping
+            resolved_cat = None
+            for main_cat, items in valid_items.items():
+                if raw_cat in [item.lower() for item in items] or raw_cat == main_cat.lower():
+                    resolved_cat = main_cat.title()
+                    break
+            
+            if not resolved_cat:
+                resolved_cat = raw_cat.title()
+            
+            if "e-waste" in resolved_cat.lower() or "electronic" in resolved_cat.lower():
+                resolved_cat = "Electronic"
+                
+            if resolved_cat in data:
                 try:
-                    data[cat] += float(d.get("quantity", 0.0))
+                    data[resolved_cat] += float(d.get("quantity", 0.0))
                 except ValueError:
                     pass
 
         if sum(data.values()) == 0.0:
             for b in self.engine.bins:
                 cat = b.waste_type.capitalize()
+                if "e-waste" in cat.lower() or "electronic" in cat.lower():
+                    cat = "Electronic"
                 if cat in data:
                     data[cat] += b.fill_level
 
@@ -434,15 +458,18 @@ class AnalyticsDashboard:
         ax = fig.add_subplot(111)
         self.apply_chart_style(fig, ax)
         
-        categories = list(data.keys())
-        values = list(data.values())
+        # Filter out 0 values to prevent stacked/overlapping labels
+        valid_data = {k: v for k, v in data.items() if v > 0}
+        categories = list(valid_data.keys())
+        values = list(valid_data.values())
         
         if sum(values) == 0.0:
             ax.text(0.5, 0.5, "No disposal operations data available yet.\nRun ticks in dashboard/admin to generate data.", 
                     horizontalalignment='center', verticalalignment='center', color='gray', transform=ax.transAxes)
             ax.set_axis_off()
         else:
-            colors = ["#10B981", "#3B82F6", "#EF4444", "#F59E0B"]
+            colors_map = {"Biodegradable": "#10B981", "Recyclable": "#3B82F6", "Hazardous": "#EF4444", "Electronic": "#F59E0B"}
+            colors = [colors_map[k] for k in categories]
             # Set aspect equal box to prevent clipping
             ax.set_aspect('equal', adjustable='box')
             ax.pie(values, labels=categories, colors=colors, autopct='%1.1f%%', startangle=140, 

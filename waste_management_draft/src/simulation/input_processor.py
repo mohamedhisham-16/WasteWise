@@ -18,13 +18,18 @@ def calculate_automated_contamination(quantity, severity_factor=0.05):
         return float(quantity * factor)
     return 0.0
 
-def calculate_penalty(contamination, category):
+def calculate_penalty(contamination_pct):
     """
-    Calculates the penalty based on contamination level and waste category severity.
+    Calculates the penalty based on Option 4: Pure Percentage + Fixed Base Fee.
+    Formula: ₹25 (Base Fine) + [Contamination % × ₹1]
     """
-    category = category.strip().lower()
-    severity, base_rate = constants.PENALTY_RATES.get(category, (1, 1))
-    penalty = contamination * severity * base_rate
+    if contamination_pct <= 0:
+        return 0.0
+    
+    base_fine = 25.0
+    percentage_fee = contamination_pct * 100.0 * 1.0
+    penalty = base_fine + percentage_fee
+    
     return float(penalty)
 
 class InputProcessor:
@@ -74,7 +79,8 @@ class InputProcessor:
             
         # Compute metrics
         contamination = calculate_automated_contamination(quantity)
-        penalty = calculate_penalty(contamination, category)
+        contamination_pct = contamination / quantity if quantity > 0 else 0.0
+        penalty = calculate_penalty(contamination_pct)
         
         input_id = f"EVT-{uuid.uuid4().hex[:8].upper()}"
         

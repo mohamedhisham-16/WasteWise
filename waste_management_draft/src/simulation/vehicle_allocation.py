@@ -47,8 +47,31 @@ class VehicleAllocator:
             True if successful, False otherwise.
         """
         if vehicle and bin_obj:
+            # Calculate the weighted average contamination level for the whole load
+            new_total = vehicle.current_load + bin_obj.fill_level
+            if new_total > 0:
+                current_contaminated = vehicle.current_load * vehicle.contamination_level
+                added_contaminated = bin_obj.fill_level * getattr(bin_obj, 'contamination_level', 0.0)
+                vehicle.contamination_level = (current_contaminated + added_contaminated) / new_total
+
+            # Merge the exact waste composition dictionaries
+            for cat, weight in getattr(bin_obj, 'waste_composition', {}).items():
+                if cat not in vehicle.waste_composition:
+                    vehicle.waste_composition[cat] = 0.0
+                vehicle.waste_composition[cat] += weight
+
             vehicle.current_load += bin_obj.fill_level
-            vehicle.collected_waste_type = bin_obj.waste_type
+            
+            # Record the original expected waste type (before converting to mixed)
+            if vehicle.original_waste_type is None:
+                vehicle.original_waste_type = bin_obj.waste_type
+                
+            # Check contamination threshold to set or maintain "Mixed/Contaminated" type
+            if getattr(bin_obj, 'contamination_level', 0.0) > 0.40 or vehicle.collected_waste_type == "Mixed/Contaminated":
+                vehicle.collected_waste_type = "Mixed/Contaminated"
+            else:
+                vehicle.collected_waste_type = bin_obj.waste_type
+                
             # Update location to the bin's location after collection
             vehicle.location_id = bin_obj.location_id
             print(f"  Vehicle {vehicle.vehicle_id} collected {bin_obj.fill_level:.1f}kg "

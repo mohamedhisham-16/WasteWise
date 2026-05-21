@@ -38,19 +38,44 @@ class WasteMonitor:
             print(f"ERROR: Cannot add {quantity}kg. Bin {bin_id} would overflow!")
             return {"success": False, "reason": "overflow"}
 
-        # 2. Automated Contamination Tracking
-        # Simulate a smart sensor: 30% chance of detecting minor contamination
-        contamination_pct = 0.0
-        if random.random() < 0.3:
-            contamination_pct = random.uniform(0.01, 0.08) # 1% to 8% contamination
-            
-        old_incorrect_weight = old_total * b.contamination_level
-        new_incorrect_added = quantity * contamination_pct
+        # 2. Track Exact Composition and Contamination
+        import json, os
+        mapping_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'waste_mapping.json')
         
+        user_cat = None
+        input_waste = waste_type.lower().strip()
+        try:
+            with open(mapping_file, 'r', encoding='utf-8') as f:
+                mappings = json.load(f)
+                valid_items = mappings.get('valid_items', {})
+                for cat, items in valid_items.items():
+                    if input_waste in [item.lower() for item in items] or input_waste == cat.lower():
+                        user_cat = cat.title() # e.g. "Biodegradable"
+                        break
+        except Exception:
+            pass
+
+        # If we couldn't resolve it, default to the input string capitalized
+        if not user_cat:
+            user_cat = waste_type.title()
+            
+        # Update bin composition
+        if user_cat not in b.waste_composition:
+            b.waste_composition[user_cat] = 0.0
+        b.waste_composition[user_cat] += quantity
+            
+        # Calculate total incorrect weight (anything not matching the bin's expected type)
+        expected_type = b.waste_type.title()
+        total_incorrect = 0.0
+        for cat, weight in b.waste_composition.items():
+            if cat != expected_type:
+                total_incorrect += weight
+                
         # 3. Update Bin Attributes
         b.fill_level = new_total
-        total_incorrect = old_incorrect_weight + new_incorrect_added
         b.contamination_level = total_incorrect / new_total if new_total > 0 else 0.0
+        
+        contamination_pct = 1.0 if user_cat != expected_type else 0.0
         
         print(f"SUCCESS: Added {quantity}kg of {waste_type} to Bin {bin_id}.")
         print(f"  System Detected: {contamination_pct*100:.1f}% contamination.")
@@ -94,6 +119,7 @@ class WasteMonitor:
             collected_amount = b.fill_level
             b.fill_level = 0.0
             b.contamination_level = 0.0
+            b.waste_composition = {}
             print(f"  Bin {bin_id} cleared. {collected_amount:.1f}kg collected.")
             return collected_amount
         return 0.0

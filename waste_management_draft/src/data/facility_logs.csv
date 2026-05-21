@@ -1,4 +1,2 @@
 timestamp,facility_id,event_type,details,redirected_to
-2026-05-21 15:01:17,F001,MANUAL_SHUTDOWN,Facility manually stopped by administrator.,None
-2026-05-21 15:01:32,F001,FAILOVER_REDIRECT,Redirected 163.3kg due to high emissions/inactivity,F005
-2026-05-21 15:01:32,F001,FAILOVER_REDIRECT,Redirected 163.3kg due to high emissions/inactivity,F005
+2026-05-22 00:21:21,F009,SEGREGATION_COMPLETE,Processed and segregated 60.0kg of waste precisely.,None

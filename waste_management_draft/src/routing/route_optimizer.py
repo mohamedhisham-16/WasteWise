@@ -17,9 +17,16 @@ def find_nearby_bins(current_bin, available_bins, graph, priority_scorer):
     distances, _ = graph.dijkstra(current_bin.location_id)
     
     for candidate in available_bins:
-        # Candidate must be compatible in waste category
-        if candidate.waste_type != current_bin.waste_type:
-            continue
+        # Check contamination threshold (40%)
+        is_current_contaminated = getattr(current_bin, 'contamination_level', 0.0) > 0.40
+        is_candidate_contaminated = getattr(candidate, 'contamination_level', 0.0) > 0.40
+        
+        if is_current_contaminated:
+            if not is_candidate_contaminated:
+                continue
+        else:
+            if is_candidate_contaminated or candidate.waste_type != current_bin.waste_type:
+                continue
             
         dist = distances.get(candidate.location_id, float('inf'))
         if dist == float('inf'):
@@ -115,7 +122,12 @@ def generate_collection_route(vehicle, initial_bin, available_bins, graph, prior
     
     vehicle.location_id = current_loc
     vehicle.current_load = current_load
-    vehicle.collected_waste_type = initial_bin.waste_type
+    
+    # Determine the load type for the facility allocator
+    if getattr(initial_bin, 'contamination_level', 0.0) > 0.40:
+        vehicle.collected_waste_type = "Mixed/Contaminated"
+    else:
+        vehicle.collected_waste_type = initial_bin.waste_type
     
     facility = facility_allocator.allocate_facility(vehicle, graph)
     

@@ -14,9 +14,15 @@ class UserManager:
         self._load_users()
 
     def _load_users(self):
-        """Populates the users list from the CSV file."""
+        """Populates the users list from the CSV file while preserving session scores."""
         data = csv_utils.read_csv(CSV_FILE, as_dict=True)
-        self.users = [User.from_dict(row) for row in data]
+        old_users = {u.user_id: u for u in self.users}
+        self.users = []
+        for row in data:
+            u = User.from_dict(row)
+            if u.user_id in old_users:
+                u.violation_score = old_users[u.user_id].violation_score
+            self.users.append(u)
 
     def add_user(self, user_id, name, role, zone, password=None, violation_score=0):
         """Adds a new user if the user_id is unique."""
@@ -78,7 +84,7 @@ class UserManager:
         user.role = role
         user.zone = zone
         user.password = password
-        user.violation_score = int(violation_score)
+        user.violation_score = float(violation_score)
         
         # Overwrite the CSV
         users_data = [u.to_dict() for u in self.users]

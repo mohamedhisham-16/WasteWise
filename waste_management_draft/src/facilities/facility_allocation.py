@@ -168,6 +168,41 @@ class FacilityAllocator:
                 if partner:
                     print(f"  [AUTO-FAILOVER] Facility {facility.facility_id} exceeded emissions! "
                           f"Load auto-rerouted to {partner.facility_id}.")
+                          
+            # --- Segregation Logic ---
+            if facility.facility_type == "Segregation Unit":
+                print(f"  [SEGREGATION] Segregating {load_amount:.1f}kg of mixed waste from {vehicle.vehicle_id}...")
+                
+                # Active plants
+                all_active_primary = [f for f in self.facilities if f.is_active and f.facility_type != "Segregation Unit"]
+                
+                # Iterate over exact composition
+                for category, weight in vehicle.waste_composition.items():
+                    if weight <= 0:
+                        continue
+                        
+                    # Find all facilities that support this specific category
+                    target_plants = [f for f in all_active_primary if category in f.supported_waste_types]
+                    
+                    if target_plants:
+                        # Distribute this exact category weight evenly among its specialized facilities
+                        amount_per_plant = weight / len(target_plants)
+                        for target_plant in target_plants:
+                            if target_plant.receive_waste(category, amount_per_plant):
+                                print(f"    -> Sent {amount_per_plant:.1f}kg (Exact: {category}) to {target_plant.facility_id} ({target_plant.facility_type})")
+                    else:
+                        print(f"    -> WARNING: No active facility available to process {weight:.1f}kg of {category}!")
+                        
+                # Log process completion per user request
+                logger.log_facility_event(
+                    facility.facility_id,
+                    "SEGREGATION_COMPLETE",
+                    f"Processed and segregated {load_amount:.1f}kg of waste precisely."
+                )
+                        
+                # Deduct the load from segregation unit since it's been instantly forwarded
+                facility.current_load = max(0.0, facility.current_load - load_amount)
+            # -------------------------
             
             # Reset vehicle after successful unloading
             vehicle.current_load = 0.0

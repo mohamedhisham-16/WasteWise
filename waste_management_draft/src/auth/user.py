@@ -6,7 +6,7 @@ class User:
         self.password = password
         self.role = role
         self.zone = zone
-        self.violation_score = int(violation_score)
+        self.violation_score = float(violation_score)
 
     def to_dict(self):
         return {
@@ -15,7 +15,7 @@ class User:
             'password': self.password,
             'role': self.role,
             'zone': self.zone,
-            'violation_score': self.violation_score
+            'violation_score': 0.0
         }
 
     @classmethod
@@ -27,6 +27,6 @@ class User:
             password=data.get('password', '123'),
             role=data['role'],
             zone=data.get('zone', ''),
-            violation_score=data.get('violation_score', 0)
+            violation_score=float(data.get('violation_score', 0.0))
         )
 

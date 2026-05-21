@@ -1,1 +1,3 @@
 timestamp,bin_id,reason,vehicle_assigned,status
+2026-05-22 00:20:13,B001,Critical Contamination Detected (50.0%),None,ACTIVE
+2026-05-22 00:21:21,B001,Resolved,V001,CLOSED

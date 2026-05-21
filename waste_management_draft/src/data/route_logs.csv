@@ -1,5 +1,2 @@
 timestamp,vehicle_id,route,distance_km,bins_collected,waste_collected_kg
-2026-05-21 15:01:32,V003,South Depot -> Industrial Zone -> Downtown Market -> Central Plaza -> Pine Heights -> Metro Hospital -> Pine Heights,16.00,2,85.70
-2026-05-21 15:01:32,V001,North Depot -> Greenwood Suburb -> Downtown Market -> Central Plaza -> Pine Heights -> Greenwood Suburb,15.00,2,163.26
-2026-05-21 15:01:32,V004,South Depot -> Industrial Zone -> Downtown Market,7.00,1,70.56
-2026-05-21 15:01:32,V002,North Depot -> Greenwood Suburb,3.00,1,64.68
+2026-05-22 00:21:21,V001,North Depot -> Greenwood Suburb,3.00,1,60.00

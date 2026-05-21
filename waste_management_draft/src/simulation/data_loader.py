@@ -57,6 +57,9 @@ def create_sample_facilities():
         Facility("F006", "Recycling Plant",   1200.0, ["Recyclable"],     0.0, "East Recycling Yard"),
         Facility("F007", "Hazmat Processor",  400.0,  ["Hazardous"],      0.0, "West Hazmat Depot"),
         Facility("F008", "E-Waste Recycler",  250.0,  ["Electronic"],     0.0, "North E-Waste Center"),
+        
+        # Segregation Facility
+        Facility("F009", "Segregation Unit",  2000.0, ["Mixed/Contaminated"], 0.0, "Central Segregation Hub"),
     ]
     return facilities
 
@@ -108,6 +111,11 @@ def create_city_graph():
     graph.add_edge("North E-Waste Center",  "E-Waste Hub", 5)
     graph.add_edge("North E-Waste Center",  "North Depot", 4)
     graph.add_edge("North E-Waste Center",  "Greenwood Suburb", 3)
+
+    # Segregation facility connections
+    graph.add_edge("Central Segregation Hub", "Downtown Market", 2)
+    graph.add_edge("Central Segregation Hub", "Central Plaza", 3)
+    graph.add_edge("Central Segregation Hub", "Recycling Hub", 4)
 
     return graph
 

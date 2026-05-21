@@ -357,10 +357,10 @@ class WasteWiseApp(tk.Tk):
                     w["pb"]["value"] = fill
                     
                     if getattr(b, 'is_emergency', False):
-                        txt = f"{fill:.1f}% (C: {getattr(b, 'contamination_rate', 0.0):.1f}%) [EMERGENCY]"
+                        txt = f"{fill:.1f}% (C: {(b.contamination_level * 100):.1f}%) [EMERGENCY]"
                         color = "red"
                     else:
-                        c_rate = getattr(b, 'contamination_rate', 0.0)
+                        c_rate = getattr(b, 'contamination_level', 0.0) * 100
                         txt = f"{fill:.1f}% (C: {c_rate:.1f}%) [{b.assigned_vehicle}]" if b.assigned_vehicle else f"{fill:.1f}% (C: {c_rate:.1f}%)"
                         color = 'red' if fill >= 90 else 'orange' if fill >= 70 else fg_col
                         
@@ -521,7 +521,7 @@ class WasteWiseApp(tk.Tk):
                 amt = round(random.uniform(10.0, 40.0), 2)
                 
                 # Determine category of waste to dispose
-                bin_cat = b.bin_type  # which is already resolved in lower-case
+                bin_cat = b.waste_type.lower()  # which is already resolved in lower-case
                 
                 # 80% chance of correct waste category, 20% chance of incorrect (contamination)
                 if random.random() < 0.8:
@@ -610,7 +610,7 @@ class WasteWiseApp(tk.Tk):
         combo_zone = ttk.Combobox(content, values=zones, state="readonly")
         combo_zone.pack(pady=(0, 5)); combo_zone.current(0)
         
-        ttk.Label(content, text="Initial Violation Score:").pack(anchor=tk.W)
+        ttk.Label(content, text="Initial Penalty Balance (₹):").pack(anchor=tk.W)
         ent_violation = ttk.Entry(content, width=30)
         ent_violation.insert(0, "0")
         ent_violation.pack(pady=(0, 5))
@@ -691,7 +691,7 @@ class WasteWiseApp(tk.Tk):
         combo_zone.pack(pady=(0, 5))
         combo_zone.set(zone_val)
         
-        ttk.Label(content, text="Violation Score / Penalty:").pack(anchor=tk.W)
+        ttk.Label(content, text="Penalty Balance (₹):").pack(anchor=tk.W)
         ent_violation = ttk.Entry(content, width=30)
         ent_violation.insert(0, str(violation_val))
         ent_violation.pack(pady=(0, 5))
@@ -739,6 +739,8 @@ class WasteWiseApp(tk.Tk):
         ttk.Button(head, text="Logout", command=self.show_login).pack(side=tk.RIGHT)
         ttk.Button(head, text="Mode", command=self.toggle_theme).pack(side=tk.RIGHT, padx=5)
         ttk.Label(head, text=f"Zone: {user.zone.capitalize()}", foreground="#aaa").pack(side=tk.RIGHT, padx=15)
+        self.lbl_penalty = ttk.Label(head, text=f"Accumulated Penalty: ₹{float(user.violation_score):.2f}", foreground="red", font=("Segoe UI", 10, "bold"))
+        self.lbl_penalty.pack(side=tk.RIGHT, padx=15)
 
         # Content Frame
         content = ttk.Frame(self, padding=20)
@@ -801,9 +803,9 @@ class WasteWiseApp(tk.Tk):
             lbl_capacity.config(
                 text=(
                     f"Bin Status: {b_obj.fill_level:.1f}kg / {b_obj.capacity:.1f}kg filled ({available:.1f}kg capacity left)\n"
-                    f"Correct Weight: {getattr(b_obj, 'total_correct_weight', 0.0):.1f} kg | "
-                    f"Contaminated Weight: {getattr(b_obj, 'total_contaminated_weight', 0.0):.1f} kg | "
-                    f"Contamination Rate: {getattr(b_obj, 'contamination_rate', 0.0):.1f}%"
+                    f"Correct Weight: {(b_obj.fill_level * (1 - getattr(b_obj, 'contamination_level', 0.0))):.1f} kg | "
+                    f"Contaminated Weight: {(b_obj.fill_level * getattr(b_obj, 'contamination_level', 0.0)):.1f} kg | "
+                    f"Contamination Rate: {(getattr(b_obj, 'contamination_level', 0.0) * 100):.1f}%"
                 )
             )
 
@@ -836,8 +838,22 @@ class WasteWiseApp(tk.Tk):
                 ent.delete(0, tk.END)
                 self.refresh_resident_ui()
                 update_capacity_info()
-                det = res.get('contamination_detected', 0) * 100
-                messagebox.showinfo("Success", f"Waste successfully disposed! Automated smart sensor registered {det:.1f}% contamination.")
+                det = res.get('total_contamination', 0) * 100
+                penalty = float(res.get('penalty', 0.0))
+                
+                if penalty > 0:
+                    self.current_user.violation_score += penalty
+                    self.user_manager.update_user(
+                        self.current_user.user_id, self.current_user.name, 
+                        self.current_user.role, self.current_user.zone, 
+                        self.current_user.password, self.current_user.violation_score
+                    )
+                    if hasattr(self, 'lbl_penalty'):
+                        self.lbl_penalty.config(text=f"Accumulated Penalty: ₹{float(self.current_user.violation_score):.2f}")
+                        
+                    messagebox.showwarning("Penalty Issued", f"Waste successfully disposed, but {det:.1f}% contamination was detected.\nYou have been penalized ₹{penalty:.2f}.")
+                else:
+                    messagebox.showinfo("Success", f"Waste successfully disposed! Automated smart sensor registered {det:.1f}% contamination.")
             else:
                 reason = res.get("reason", "unknown") if res else "unknown"
                 msg = res.get("message", "Cannot accept additional waste weight. Bin is currently full!") if res else "An unknown error occurred."
