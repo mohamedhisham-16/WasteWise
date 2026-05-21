@@ -153,7 +153,7 @@ class WasteWiseApp(tk.Tk):
         self.geometry("400x380")
         self.maximize_window()
         
-        theme_btn = ttk.Button(self, text="🌓 Toggle Theme", command=self.toggle_theme)
+        theme_btn = ttk.Button(self, text="Toggle Theme", command=self.toggle_theme)
         theme_btn.place(relx=0.95, rely=0.05, anchor=tk.NE)
         
         frame = ttk.Frame(self, padding=30)
@@ -207,7 +207,7 @@ class WasteWiseApp(tk.Tk):
         head = ttk.Frame(self, padding=5)
         head.pack(fill=tk.X)
         ttk.Button(head, text="Logout", command=self.show_login).pack(side=tk.RIGHT, padx=10)
-        ttk.Button(head, text="🌓 Theme Mode", command=self.toggle_theme).pack(side=tk.RIGHT, padx=10)
+        ttk.Button(head, text="Theme Mode", command=self.toggle_theme).pack(side=tk.RIGHT, padx=10)
         
         ttk.Label(head, text=f"Admin Panel: {user.name}", style="Header.TLabel").pack(side=tk.LEFT, padx=15)
 
@@ -217,16 +217,16 @@ class WasteWiseApp(tk.Tk):
 
         # Tab 1: Live Monitoring (100% Original Fully-Integrated View)
         self.tab_monitor = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_monitor, text="🖥️ Live Monitoring")
+        self.notebook.add(self.tab_monitor, text="Live Monitoring")
 
         # Tabs 2-4: Dynamic Operations, Facilities, and Residents Dashboards (Omitted Routing and Emergencies tabs!)
         self.tab_ops = ttk.Frame(self.notebook)
         self.tab_fac = ttk.Frame(self.notebook)
         self.tab_res = ttk.Frame(self.notebook)
 
-        self.notebook.add(self.tab_ops, text="📈 Operations Tab")
-        self.notebook.add(self.tab_fac, text="🏭 Facilities Tab")
-        self.notebook.add(self.tab_res, text="👥 Residents Tab")
+        self.notebook.add(self.tab_ops, text="Operations Tab")
+        self.notebook.add(self.tab_fac, text="Facilities Tab")
+        self.notebook.add(self.tab_res, text="Residents Tab")
 
         # -------------------------------------------------------------------------
         #  BUILD LIVE MONITORING TAB LAYOUT (Matches original double-panel layout)
@@ -239,7 +239,7 @@ class WasteWiseApp(tk.Tk):
         # Left Side - Emergency Notification Alerts
         self.alerts_frame = ttk.LabelFrame(left_panel, text="Critical System Notifications", padding=10)
         self.alerts_frame.pack(fill=tk.X, pady=(0, 10))
-        self.alerts_label = ttk.Label(self.alerts_frame, text="✅ System Healthy. No active emergencies.", foreground="green", font=("Segoe UI", 10, "bold"))
+        self.alerts_label = ttk.Label(self.alerts_frame, text="System Healthy. No active emergencies.", foreground="green", font=("Segoe UI", 10, "bold"))
         self.alerts_label.pack(fill=tk.X, padx=10, pady=2)
 
         # Left Side - City Bins Progress
@@ -304,9 +304,9 @@ class WasteWiseApp(tk.Tk):
         # Right Side - Action Controls Frame
         ctrls = ttk.Frame(right_panel)
         ctrls.pack(fill=tk.X, pady=5)
-        ttk.Button(ctrls, text="⏳ 1. Advance Time", command=self.admin_simulate).pack(side=tk.LEFT, padx=3, expand=True, fill=tk.X)
-        ttk.Button(ctrls, text="⚡ 2. Run Dispatch", command=self.admin_optimize).pack(side=tk.LEFT, padx=3, expand=True, fill=tk.X)
-        ttk.Button(ctrls, text="🔄 Reset System", command=self.admin_reset).pack(side=tk.LEFT, padx=3, expand=True, fill=tk.X)
+        ttk.Button(ctrls, text="1. Advance Time", command=self.admin_simulate).pack(side=tk.LEFT, padx=3, expand=True, fill=tk.X)
+        ttk.Button(ctrls, text="2. Run Dispatch", command=self.admin_optimize).pack(side=tk.LEFT, padx=3, expand=True, fill=tk.X)
+        ttk.Button(ctrls, text="Reset System", command=self.admin_reset).pack(side=tk.LEFT, padx=3, expand=True, fill=tk.X)
 
         # Bind notebook tab switches to dynamically redraw analytics
         self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
@@ -343,10 +343,10 @@ class WasteWiseApp(tk.Tk):
         emergencies = [b for b in self.engine.bins if getattr(b, 'is_emergency', False)]
         if hasattr(self, 'alerts_label'):
             if emergencies:
-                alert_text = "\n".join([f"🚨 EMERGENCY: {eb.emergency_reason} at Bin {eb.bin_id}" for eb in emergencies])
+                alert_text = "\n".join([f"EMERGENCY: {eb.emergency_reason} at Bin {eb.bin_id}" for eb in emergencies])
                 self.alerts_label.config(text=alert_text, foreground="red")
             else:
-                self.alerts_label.config(text="✅ System Healthy. No active emergencies.", foreground="green")
+                self.alerts_label.config(text="System Healthy. No active emergencies.", foreground="green")
 
         # Update Waste Bins Progress
         if hasattr(self, 'admin_bin_widgets'):
@@ -357,7 +357,7 @@ class WasteWiseApp(tk.Tk):
                     w["pb"]["value"] = fill
                     
                     if getattr(b, 'is_emergency', False):
-                        txt = f"🚨 {fill:.1f}% [EMERGENCY - {b.emergency_reason[:15]}]"
+                        txt = f"{fill:.1f}% [EMERGENCY - {b.emergency_reason[:15]}]"
                         color = "red"
                     else:
                         txt = f"{fill:.1f}% [{b.assigned_vehicle}]" if b.assigned_vehicle else f"{fill:.1f}%"
@@ -376,10 +376,10 @@ class WasteWiseApp(tk.Tk):
                     # Highlight if inactive due to emissions failover or manual shutdown
                     if not f.is_active:
                         if f.emissions >= f.emission_limit:
-                            w["val"].config(text=f"🚨 {f.current_load:.1f}/{f.max_daily_capacity:.1f} kg (SUSPENDED)", foreground="red")
+                            w["val"].config(text=f"{f.current_load:.1f}/{f.max_daily_capacity:.1f} kg (SUSPENDED)", foreground="red")
                             w["time"].config(text="FAILOVER", foreground="red")
                         else:
-                            w["val"].config(text=f"⛔ {f.current_load:.1f}/{f.max_daily_capacity:.1f} kg (STOPPED)", foreground="orange")
+                            w["val"].config(text=f"{f.current_load:.1f}/{f.max_daily_capacity:.1f} kg (STOPPED)", foreground="orange")
                             w["time"].config(text="MANUAL", foreground="orange")
                     else:
                         w["val"].config(text=f"{f.current_load:.1f}/{f.max_daily_capacity:.1f} kg", foreground=fg_col)
@@ -447,7 +447,7 @@ class WasteWiseApp(tk.Tk):
         # Title
         title_frame = tk.Frame(popup, bg=bg_col, pady=12)
         title_frame.pack(fill=tk.X)
-        tk.Label(title_frame, text=f"🚛 FLEET DETAIL: {vehicle.vehicle_id}", 
+        tk.Label(title_frame, text=f"FLEET DETAIL: {vehicle.vehicle_id}", 
                  font=("Segoe UI", 14, "bold"), fg=fg_col, bg=bg_col).pack()
         
         # Core Info Box
@@ -500,7 +500,7 @@ class WasteWiseApp(tk.Tk):
         facility = next((f for f in self.engine.facilities if f.facility_id == fid), None)
         if facility:
             facility.empty_facility()
-            self.admin_log(f"🏭 Facility {fid} manually emptied and cleared.")
+            self.admin_log(f"Facility {fid} manually emptied and cleared.")
             self.refresh_admin_ui()
 
     def admin_simulate(self):
@@ -516,7 +516,7 @@ class WasteWiseApp(tk.Tk):
                     # Log to event view if emergency was triggered by overflow
                     b_obj = self.engine.monitor.find_bin(b.bin_id)
                     if b_obj and getattr(b_obj, 'is_emergency', False):
-                        self.admin_log(f"🚨 [EMERGENCY ACTIVE] Bin {b.bin_id} overflow alert!")
+                        self.admin_log(f"[EMERGENCY ACTIVE] Bin {b.bin_id} overflow alert!")
 
         self.engine.advance_facilities()
         self.refresh_admin_ui()
@@ -528,7 +528,7 @@ class WasteWiseApp(tk.Tk):
         # Hook facility failover warning logging before running optimization
         for f in self.engine.facilities:
             if not f.is_active:
-                self.admin_log(f"🏭 [ALERT] Facility {f.facility_id} inactive due to high emissions or manual stop! Failover active.")
+                self.admin_log(f"[ALERT] Facility {f.facility_id} inactive due to high emissions or manual stop! Failover active.")
 
         sumry = self.engine.run_optimization(alert_threshold=70.0)
         self.admin_log(f"SUCCESS: Collected {sumry['bins_collected']} Bins, Unloaded {sumry['vehicles_unloaded']} Vehicles.")
@@ -536,7 +536,7 @@ class WasteWiseApp(tk.Tk):
         # Log completed routes in live list
         for v in self.engine.vehicles:
             if getattr(v, 'current_route', []):
-                self.admin_log(f"🚚 Route completed: {v.vehicle_id} collected Bins: {getattr(v, 'last_target', 'N/A')}")
+                self.admin_log(f"Route completed: {v.vehicle_id} collected Bins: {getattr(v, 'last_target', 'N/A')}")
                 
         self.refresh_admin_ui()
 
@@ -705,7 +705,7 @@ class WasteWiseApp(tk.Tk):
         head.pack(fill=tk.X)
         ttk.Label(head, text=f"Logged in as: {user.name} (Resident)", style="Header.TLabel").pack(side=tk.LEFT)
         ttk.Button(head, text="Logout", command=self.show_login).pack(side=tk.RIGHT)
-        ttk.Button(head, text="🌓 Mode", command=self.toggle_theme).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(head, text="Mode", command=self.toggle_theme).pack(side=tk.RIGHT, padx=5)
         ttk.Label(head, text=f"Zone: {user.zone.capitalize()}", foreground="#aaa").pack(side=tk.RIGHT, padx=15)
 
         # Content Frame
@@ -800,7 +800,7 @@ class WasteWiseApp(tk.Tk):
             w["pb"]["value"] = fill
             
             if getattr(b, 'is_emergency', False):
-                w["val"].config(text=f"🚨 {fill:.1f}% EMERGENCY", foreground="red")
+                w["val"].config(text=f"{fill:.1f}% EMERGENCY", foreground="red")
             else:
                 w["val"].config(text=f"{fill:.1f}%", foreground=fg_col)
 

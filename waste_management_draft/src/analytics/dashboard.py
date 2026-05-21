@@ -133,11 +133,11 @@ class AnalyticsDashboard:
         
         # Grid of key performance indicator cards
         kpis = [
-            ("Total Waste Collected", f"{metrics['total_waste_collected_kg']} kg", "♻️"),
-            ("Total Bins Serviced", f"{metrics['total_bins_serviced']} Bins", "🗑️"),
-            ("Active Fleet Count", f"{metrics['active_vehicles']} Trucks", "🚚"),
-            ("Active Facilities", f"{metrics['total_facilities_active']} Units", "🏭"),
-            ("Current Emergencies", f"{metrics['current_emergencies']}", "⚠️")
+            ("Total Waste Collected", f"{metrics['total_waste_collected_kg']} kg", ""),
+            ("Total Bins Serviced", f"{metrics['total_bins_serviced']} Bins", ""),
+            ("Active Fleet Count", f"{metrics['active_vehicles']} Trucks", ""),
+            ("Active Facilities", f"{metrics['total_facilities_active']} Units", ""),
+            ("Current Emergencies", f"{metrics['current_emergencies']}", "")
         ]
         
         card_frame = tk.Frame(frame, bg=bg)
@@ -172,17 +172,17 @@ class AnalyticsDashboard:
         info_panel = tk.LabelFrame(top_frame, text="Facility Efficiency Stats", bg=card_bg, fg=fg, bd=1, relief=tk.SOLID, padx=15, pady=10)
         info_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         
-        tk.Label(info_panel, text=f"🔴 Suspended Facilities: {metrics['inactive_count']}", font=("Segoe UI", 10, "bold"), fg="red" if metrics['inactive_count'] > 0 else fg, bg=card_bg, anchor="w").pack(fill=tk.X, pady=2)
-        tk.Label(info_panel, text=f"🔀 Waste Redirections (Failovers): {metrics['total_redirects']}", font=("Segoe UI", 10, "bold"), fg="#3B82F6", bg=card_bg, anchor="w").pack(fill=tk.X, pady=2)
-        tk.Label(info_panel, text=f"✨ Most Efficient: Facility {metrics['most_efficient_id']} ({metrics['most_efficient_type']})", font=("Segoe UI", 10), fg=fg, bg=card_bg, anchor="w").pack(fill=tk.X, pady=2)
-        tk.Label(info_panel, text=f"🚨 Most Polluting: Facility {metrics['most_polluting_id']} ({metrics['most_polluting_emissions']} kg CO2)", font=("Segoe UI", 10), fg=fg, bg=card_bg, anchor="w").pack(fill=tk.X, pady=2)
+        tk.Label(info_panel, text=f"Suspended Facilities: {metrics['inactive_count']}", font=("Segoe UI", 10, "bold"), fg="red" if metrics['inactive_count'] > 0 else fg, bg=card_bg, anchor="w").pack(fill=tk.X, pady=2)
+        tk.Label(info_panel, text=f"Waste Redirections (Failovers): {metrics['total_redirects']}", font=("Segoe UI", 10, "bold"), fg="#3B82F6", bg=card_bg, anchor="w").pack(fill=tk.X, pady=2)
+        tk.Label(info_panel, text=f"Most Efficient: Facility {metrics['most_efficient_id']} ({metrics['most_efficient_type']})", font=("Segoe UI", 10), fg=fg, bg=card_bg, anchor="w").pack(fill=tk.X, pady=2)
+        tk.Label(info_panel, text=f"Most Polluting: Facility {metrics['most_polluting_id']} ({metrics['most_polluting_emissions']} kg CO2)", font=("Segoe UI", 10), fg=fg, bg=card_bg, anchor="w").pack(fill=tk.X, pady=2)
         
         redirections_box = tk.LabelFrame(top_frame, text="Failover/Redirection Log Alerts", bg=card_bg, fg=fg, bd=1, relief=tk.SOLID, padx=15, pady=10)
         redirections_box.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
         
         fac_logs = csv_utils.read_csv(logger.FACILITY_LOG, as_dict=True)
         if not fac_logs:
-            tk.Label(redirections_box, text="✅ All facilities operational. No failover events logged.", font=("Segoe UI", 9, "italic"), fg="green", bg=card_bg).pack(pady=10)
+            tk.Label(redirections_box, text="All facilities operational. No failover events logged.", font=("Segoe UI", 9, "italic"), fg="green", bg=card_bg).pack(pady=10)
         else:
             for l in fac_logs[-3:]:
                 log_txt = f"[{l.get('timestamp')[-8:]}] Facility {l.get('facility_id')} failed over! Waste routed to {l.get('redirected_to')}"
@@ -212,15 +212,15 @@ class AnalyticsDashboard:
                 # Determine activity status and colors
                 if not f.is_active:
                     if f.emissions >= f.emission_limit:
-                        act_status = "🔴 SUSPENDED (HIGH EMISSIONS)"
+                        act_status = "SUSPENDED (HIGH EMISSIONS)"
                     else:
-                        act_status = "⛔ STOPPED (MANUAL)"
+                        act_status = "STOPPED (MANUAL)"
                 else:
-                    act_status = "🟢 ACTIVE"
+                    act_status = "ACTIVE"
                 
                 # Find backup partner
                 partner = self.engine.facility_allocator.get_partner_facility(f)
-                partner_str = partner.facility_id if partner else "⚠️ NONE"
+                partner_str = partner.facility_id if partner else "NONE"
                     
                 tree.insert('', 'end', values=(
                     f.facility_id,
@@ -254,11 +254,11 @@ class AnalyticsDashboard:
                         load_before = facility.current_load
                         partner = self.engine.facility_allocator.reroute_waste_on_shutdown(facility)
                         if partner:
-                            reroute_msg = (f"\n\n🔀 {load_before:.1f}kg of waste has been "
+                            reroute_msg = (f"\n\n{load_before:.1f}kg of waste has been "
                                           f"automatically rerouted to backup facility {partner.facility_id} "
                                           f"({partner.facility_type}).")
                         else:
-                            reroute_msg = (f"\n\n⚠️ WARNING: No active backup facility available! "
+                            reroute_msg = (f"\n\nWARNING: No active backup facility available! "
                                           f"{load_before:.1f}kg of waste remains stranded.")
                     
                     messagebox.showinfo("Facility Stopped", 
@@ -287,7 +287,7 @@ class AnalyticsDashboard:
         btn_bar = tk.Frame(list_frame, bg=card_bg)
         btn_bar.pack(fill=tk.X, pady=5)
         
-        ttk.Button(btn_bar, text="⚡ Toggle Facility Status (Start / Stop)", command=toggle_facility_status).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_bar, text="Toggle Facility Status (Start / Stop)", command=toggle_facility_status).pack(side=tk.LEFT, padx=5)
         
         refresh_facilities()
 
@@ -305,7 +305,7 @@ class AnalyticsDashboard:
         top_frame.pack(fill=tk.X, pady=10)
         
         kpis = [
-            ("Average Contamination Level", f"{metrics['average_contamination_pct']}%", "☣️")
+            ("Average Contamination Level", f"{metrics['average_contamination_pct']}%", "")
         ]
         
         for idx, (label, val, icon) in enumerate(kpis):
@@ -378,9 +378,9 @@ class AnalyticsDashboard:
                     refresh_list()
                     messagebox.showinfo("Success", "Account deleted successfully.")
                     
-        ttk.Button(btn_bar, text="➕ Add Resident Account", command=add_user_action).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_bar, text="✏️ Edit Selected Account", command=edit_user_action).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_bar, text="🗑️ Delete Selected Account", command=delete_user_action).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_bar, text="Add Resident Account", command=add_user_action).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_bar, text="Edit Selected Account", command=edit_user_action).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_bar, text="Delete Selected Account", command=delete_user_action).pack(side=tk.LEFT, padx=5)
         
         refresh_list()
 
