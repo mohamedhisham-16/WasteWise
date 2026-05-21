@@ -254,7 +254,7 @@ class WasteWiseApp(tk.Tk):
             ttk.Label(row, text=f"{b.bin_id} ({b.waste_type})", width=25).pack(side=tk.LEFT)
             pb = ttk.Progressbar(row, orient=tk.HORIZONTAL, length=180, mode='determinate')
             pb.pack(side=tk.LEFT, padx=10)
-            val = ttk.Label(row, text="0.0%", width=18)
+            val = ttk.Label(row, text="0.0%", width=28)
             val.pack(side=tk.LEFT)
             self.admin_bin_widgets[b.bin_id] = {"pb": pb, "val": val}
 
@@ -357,10 +357,11 @@ class WasteWiseApp(tk.Tk):
                     w["pb"]["value"] = fill
                     
                     if getattr(b, 'is_emergency', False):
-                        txt = f"{fill:.1f}% [EMERGENCY - {b.emergency_reason[:15]}]"
+                        txt = f"{fill:.1f}% (C: {getattr(b, 'contamination_rate', 0.0):.1f}%) [EMERGENCY]"
                         color = "red"
                     else:
-                        txt = f"{fill:.1f}% [{b.assigned_vehicle}]" if b.assigned_vehicle else f"{fill:.1f}%"
+                        c_rate = getattr(b, 'contamination_rate', 0.0)
+                        txt = f"{fill:.1f}% (C: {c_rate:.1f}%) [{b.assigned_vehicle}]" if b.assigned_vehicle else f"{fill:.1f}% (C: {c_rate:.1f}%)"
                         color = 'red' if fill >= 90 else 'orange' if fill >= 70 else fg_col
                         
                     w["val"].config(text=txt, foreground=color)
@@ -506,17 +507,48 @@ class WasteWiseApp(tk.Tk):
     def admin_simulate(self):
         """Ticks simulation time, adding random trash into random city bins."""
         self.admin_log("\n--- TICK: Advancing Time / City Bins Filling ---")
+        
+        # Sample items for each canonical category to simulate realistic inputs
+        items_map = {
+            'biodegradable': ['food waste', 'vegetable peels', 'fruit scraps', 'leaves', 'leftovers', 'organic'],
+            'recyclable': ['plastics', 'paper', 'glass bottle', 'cardboard', 'metal cans', 'plastic bottle'],
+            'hazardous': ['syringes', 'bandages', 'expired medicine', 'chemicals', 'needles'],
+            'e_waste': ['electronics', 'displays', 'batteries', 'motherboards', 'cables', 'monitors', 'phones']
+        }
+        
         for b in self.engine.bins:
             if random.random() > 0.3:
                 amt = round(random.uniform(10.0, 40.0), 2)
-                res = self.engine.add_waste(b.bin_id, b.waste_type, amt, user_id="SimUser")
+                
+                # Determine category of waste to dispose
+                bin_cat = b.bin_type  # which is already resolved in lower-case
+                
+                # 80% chance of correct waste category, 20% chance of incorrect (contamination)
+                if random.random() < 0.8:
+                    disposed_cat = bin_cat
+                else:
+                    # Pick a different category
+                    other_cats = [c for c in items_map.keys() if c != bin_cat]
+                    disposed_cat = random.choice(other_cats) if other_cats else bin_cat
+                
+                # Pick a specific item from that category to simulate realistic resident input
+                if disposed_cat in items_map:
+                    disposed_item = random.choice(items_map[disposed_cat])
+                else:
+                    disposed_item = b.waste_type
+                
+                res = self.engine.add_waste(b.bin_id, disposed_item, amt, user_id="SimUser")
                 if res and res.get('success'):
-                    self.admin_log(f"  -> Added {amt}kg to {b.bin_id} ({res.get('contamination_detected', 0)*100:.1f}% sensor)")
+                    # Show contamination percentage
+                    contam_pct = res.get('contamination_detected', 0.0) * 100
+                    self.admin_log(
+                        f"  -> Added {amt}kg of '{disposed_item}' (resolved: {disposed_cat}) to {b.bin_id}. "
+                        f"Sensor: {contam_pct:.1f}% contamination."
+                    )
                     
-                    # Log to event view if emergency was triggered by overflow
                     b_obj = self.engine.monitor.find_bin(b.bin_id)
                     if b_obj and getattr(b_obj, 'is_emergency', False):
-                        self.admin_log(f"[EMERGENCY ACTIVE] Bin {b.bin_id} overflow alert!")
+                        self.admin_log(f"[EMERGENCY ACTIVE] Bin {b.bin_id} emergency triggered! Reason: {b_obj.emergency_reason}")
 
         self.engine.advance_facilities()
         self.refresh_admin_ui()
@@ -728,6 +760,14 @@ class WasteWiseApp(tk.Tk):
                 val.pack(side=tk.LEFT)
                 self.res_bin_widgets[b.bin_id] = {"pb": pb, "val": val, "obj": b}
 
+        # Extract preset items for autocomplete/selection
+        preset_items = []
+        valid_items_dict = self.input_processor.mappings.get('valid_items', {})
+        for cat, items in valid_items_dict.items():
+            preset_items.extend(items)
+        preset_items.extend(['biodegradable', 'recyclable', 'hazardous', 'e-waste'])
+        preset_items = list(dict.fromkeys(preset_items))
+
         # Disposal Card
         dispose_frame = ttk.LabelFrame(content, text="Dispose Materials Safely", padding=15)
         dispose_frame.pack(fill=tk.X, pady=(20, 0))
@@ -737,13 +777,19 @@ class WasteWiseApp(tk.Tk):
         combo = ttk.Combobox(dispose_frame, values=bids, state="readonly", width=15)
         combo.grid(row=0, column=1, padx=10, pady=5, sticky=tk.W)
         
-        ttk.Label(dispose_frame, text="Quantity (kg):").grid(row=0, column=2, padx=10, pady=5, sticky=tk.W)
+        ttk.Label(dispose_frame, text="Waste Type:").grid(row=0, column=2, padx=10, pady=5, sticky=tk.W)
+        combo_waste_type = ttk.Combobox(dispose_frame, values=preset_items, width=15)
+        combo_waste_type.grid(row=0, column=3, padx=10, pady=5, sticky=tk.W)
+        if preset_items:
+            combo_waste_type.current(0)
+        
+        ttk.Label(dispose_frame, text="Quantity (kg):").grid(row=1, column=0, padx=10, pady=5, sticky=tk.W)
         ent = ttk.Entry(dispose_frame, width=15)
-        ent.grid(row=0, column=3, padx=10, pady=5, sticky=tk.W)
+        ent.grid(row=1, column=1, padx=10, pady=5, sticky=tk.W)
 
         # Capacity Status Label
         lbl_capacity = ttk.Label(dispose_frame, text="", font=("Segoe UI", 9, "italic"))
-        lbl_capacity.grid(row=1, column=0, columnspan=5, padx=10, pady=(10, 0), sticky=tk.W)
+        lbl_capacity.grid(row=2, column=0, columnspan=5, padx=10, pady=(10, 0), sticky=tk.W)
 
         def update_capacity_info(*args):
             bid = combo.get()
@@ -753,7 +799,12 @@ class WasteWiseApp(tk.Tk):
             b_obj = self.res_bin_widgets[bid]["obj"]
             available = b_obj.capacity - b_obj.fill_level
             lbl_capacity.config(
-                text=f"Bin Status: {b_obj.fill_level:.1f}kg / {b_obj.capacity:.1f}kg filled ({available:.1f}kg capacity left)"
+                text=(
+                    f"Bin Status: {b_obj.fill_level:.1f}kg / {b_obj.capacity:.1f}kg filled ({available:.1f}kg capacity left)\n"
+                    f"Correct Weight: {getattr(b_obj, 'total_correct_weight', 0.0):.1f} kg | "
+                    f"Contaminated Weight: {getattr(b_obj, 'total_contaminated_weight', 0.0):.1f} kg | "
+                    f"Contamination Rate: {getattr(b_obj, 'contamination_rate', 0.0):.1f}%"
+                )
             )
 
         combo.bind("<<ComboboxSelected>>", update_capacity_info)
@@ -767,6 +818,10 @@ class WasteWiseApp(tk.Tk):
             if not bid:
                 messagebox.showerror("Error", "No bins available.")
                 return
+            w_type = combo_waste_type.get().strip()
+            if not w_type:
+                messagebox.showerror("Error", "Please enter/select a waste type.")
+                return
             try:
                 amt = float(ent.get())
                 if amt <= 0: raise ValueError
@@ -775,7 +830,7 @@ class WasteWiseApp(tk.Tk):
                 return
             
             b_obj = self.res_bin_widgets[bid]["obj"]
-            res = self.engine.add_waste(bid, b_obj.waste_type, amt, user_id=self.current_user.user_id)
+            res = self.engine.add_waste(bid, w_type, amt, user_id=self.current_user.user_id)
             
             if res and res.get("success"):
                 ent.delete(0, tk.END)
@@ -784,10 +839,15 @@ class WasteWiseApp(tk.Tk):
                 det = res.get('contamination_detected', 0) * 100
                 messagebox.showinfo("Success", f"Waste successfully disposed! Automated smart sensor registered {det:.1f}% contamination.")
             else:
-                messagebox.showerror("Bin Full", "Cannot accept additional waste weight. Bin is currently full!")
+                reason = res.get("reason", "unknown") if res else "unknown"
+                msg = res.get("message", "Cannot accept additional waste weight. Bin is currently full!") if res else "An unknown error occurred."
+                if reason == "overflow":
+                    messagebox.showerror("Bin Full", msg)
+                else:
+                    messagebox.showerror("Validation Error", msg)
 
         ent.bind("<Return>", commit)
-        ttk.Button(dispose_frame, text="Dispose Weight", command=commit).grid(row=0, column=4, padx=20, pady=5)
+        ttk.Button(dispose_frame, text="Dispose Weight", command=commit).grid(row=1, column=3, padx=20, pady=5)
 
         self.refresh_resident_ui()
 
